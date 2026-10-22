@@ -18,6 +18,7 @@ import { DbConnection, type ErrorContext } from "./module_bindings/index.js";
 import { Identity } from "spacetimedb";
 import { sharedIndex } from "./game/dictionary.ts";
 import { LiveBot, type LiveConn } from "./live/adapter.ts";
+import { BASE_QUERIES, botQueries } from "./live/queries.ts";
 
 const HOST = process.env.STDB_HOST ?? "https://maincloud.spacetimedb.com";
 const DB_NAME = process.env.STDB_DB ?? "scrabblebot";
@@ -35,6 +36,22 @@ const index = sharedIndex(); // build the dictionary index before connecting (~0
 let bot: LiveBot | null = null;
 let tickTimer: ReturnType<typeof setInterval> | null = null;
 let retryMs = 1000;
+let stopping = false;
+
+/**
+ * Stop for good with an exit code (2 = configuration error, which run.ps1
+ * doesn't restart). Closes the connection and lets Node exit by itself:
+ * process.exit() with a WebSocket open trips a libuv assertion on Windows
+ * and exits with 127 instead.
+ */
+function fatal(conn: DbConnection, code: number, ...msg: unknown[]) {
+  console.error(`[${BOT_NAME}]`, ...msg);
+  stopping = true;
+  process.exitCode = code;
+  if (tickTimer) clearInterval(tickTimer);
+  conn.disconnect();
+  setTimeout(() => process.exit(code), 5000).unref();
+}
 
 function onConnect(conn: DbConnection, identity: Identity, _token: string) {
   retryMs = 1000;
@@ -54,18 +71,32 @@ function onConnect(conn: DbConnection, identity: Identity, _token: string) {
   }
   const b = bot;
 
+  // Never subscribeToAllTables(): the live database holds every match ever
+  // played and would exhaust the heap (src/live/queries.ts). First the small
+  // tables, to learn our bot id; then only our own slice.
+  const subscriptionFailed = (what: string) => (ctx: unknown) =>
+    fatal(conn, 1, `${what} subscription failed:`, (ctx as { event?: unknown }).event ?? ctx); // run.ps1 restarts
   conn
     .subscriptionBuilder()
     .onApplied(() => {
-      if (!b.onApplied(identity)) {
-        console.error(`[${BOT_NAME}] this token is not a credential for any bot — get a fresh one with 'npm run get-token'`);
-        process.exit(2); // configuration error: run.ps1 doesn't restart on code 2
+      const cred = conn.db.botCredential.identity.find(identity);
+      if (!cred) {
+        fatal(conn, 2, "this token is not a credential for any bot — get a fresh one with 'npm run get-token'");
+        return;
       }
-      log(`acting as bot '${conn.db.bot.id.find(b.myBotId!)?.name ?? "?"}' (id ${b.myBotId})`);
-      if (tickTimer) clearInterval(tickTimer);
-      tickTimer = setInterval(() => b.tick(), 3000);
+      conn
+        .subscriptionBuilder()
+        .onApplied(() => {
+          if (!b.onApplied(identity)) return;
+          log(`acting as bot '${conn.db.bot.id.find(b.myBotId!)?.name ?? "?"}' (id ${b.myBotId})`);
+          if (tickTimer) clearInterval(tickTimer);
+          tickTimer = setInterval(() => b.tick(), 3000);
+        })
+        .onError(subscriptionFailed("match"))
+        .subscribe(botQueries(cred.botId));
     })
-    .subscribeToAllTables();
+    .onError(subscriptionFailed("base"))
+    .subscribe([...BASE_QUERIES]);
 
   conn.db.matchParticipant.onInsert((_ctx, p) => b.onParticipantInsert(p));
   conn.db.auction.onInsert((_ctx, a) => b.onAuctionInsert(a));
@@ -80,6 +111,7 @@ function onConnect(conn: DbConnection, identity: Identity, _token: string) {
 
 /** Reconnect with backoff; sessions survive, so a mid-match blip resumes. */
 function reconnect(why: string) {
+  if (stopping) return;
   if (tickTimer) clearInterval(tickTimer);
   tickTimer = null;
   console.error(`[${BOT_NAME}] ${why}; reconnecting in ${retryMs / 1000}s`);

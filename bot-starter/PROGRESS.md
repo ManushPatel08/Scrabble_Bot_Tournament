@@ -23,6 +23,9 @@ on branch `scrabblebot-bot`, merged with upstream's tournament version
   - Auto-registers for tournaments.
   - Reads each auction's window from the auction row.
   - Holds out of lobbies during the round robin and finals.
+  - Subscribes only to its own slice of the live tables. On 2026-10-22,
+    `subscribeToAllTables` ran out of memory on the live server's ~11 M
+    rows (exit 134).
   - Detects offline opponents.
   - Places a safe bid before words.
   - Reconnects with backoff and replays the match after a restart.
@@ -33,16 +36,21 @@ on branch `scrabblebot-bot`, merged with upstream's tournament version
   input, keeps the PC awake and restarts the bot on a crash.
 - **Checks:**
   - `npm run typecheck` is clean.
-  - `npm test` passes 65/65.
+  - `npm test` passes 66/66.
   - Launcher smoke test passes (dead host: the schema check is skipped, the
     bot reconnects, and the token never appears).
   - The token helper's claim was tried live with a bogus code (rejected,
     as expected).
+  - The filtered subscriptions were run live (anonymous, read-only):
+    0.15–0.6 s and 15–117 MB. The client was also started live with a
+    non-bot identity: it exits with code 2, as intended.
 
 ## Manual steps (need the user's account)
 
 The SpacetimeDB CLI is installed (`%LOCALAPPDATA%\SpacetimeDB`), and
-`spacetime login` was done on 2026-10-22. That account has no team yet.
+`spacetime login` was done on 2026-10-22. The account's team was created
+with the README's placeholder names: bot 4097 is "YourBotName". To pick
+real names: `spacetime call scrabblebot leave_team`, then step 1.
 
 1. **Get a token** (once). In a new PowerShell window:
    ```powershell

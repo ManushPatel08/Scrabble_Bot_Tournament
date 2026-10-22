@@ -5,6 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { sharedIndex } from "../src/game/dictionary.ts";
 import { LiveBot } from "../src/live/adapter.ts";
+import { BASE_QUERIES, botQueries } from "../src/live/queries.ts";
 import { FakeServer, ME_IDENTITY } from "./fakeserver.ts";
 import type { SimStrategy } from "../src/game/types.ts";
 
@@ -152,4 +153,16 @@ test("plays a full match with 250 ms auctions (precompute skipped)", () => {
   assert.equal(bot.finished.length, 1);
   assert.equal(bot.finished[0]!.place, 1);
   assert.equal(bot.errors, 0);
+});
+
+test("subscribes only to its own slice of the big tables", () => {
+  const qs = botQueries(4097n);
+  // Every per-match table is reached only through this bot's participations.
+  for (const table of ["match_state", "match_participant", "auction", "auction_result", "word_play", "lobby", "lobby_member", "tournament_entry"]) {
+    const q = qs.filter((x) => new RegExp(`FROM ${table}\\b`).test(x));
+    assert.equal(q.length, 1, table);
+    assert.match(q[0]!, /bot_id = 4097$/, table);
+  }
+  // Nothing global except the small tables.
+  assert.deepEqual([...BASE_QUERIES].map((q) => q.replace("SELECT * FROM ", "")), ["bot_credential", "bot", "tournament"]);
 });

@@ -19,7 +19,8 @@ live bot needs the npm dependencies.
 | `src/index.ts` | Live client glue: SDK connection, subscription, reconnect |
 | `src/live/adapter.ts` | Live match logic: per-match sessions, event ordering, restart replay, reducer calls. It is SDK-free, so `test/live.test.ts` drives it with a fake server |
 | `run.ps1` | Windows launcher: checks the bindings against the live schema, hidden token prompt, keeps the PC awake, restarts the bot on a crash |
-| `scripts/` | `get-token.ts` (bot token without the website), `check-live-schema.mjs` / `sync-live-bindings.mjs` (keep the bindings matched to the live server) |
+| `src/live/queries.ts` | Subscription queries: the bot's own slice of the live tables |
+| `scripts/` | `get-token.ts` (bot token without the website), `check-live-schema.mjs` / `sync-live-bindings.mjs` (keep the bindings matched to the live server), `sub-probe.ts` (subscription size for a bot id) |
 | `src/strategy.ts` | The shipped configuration (`FINAL_PARAMS`), plus `decideBid` / `chooseWord` |
 | `src/strategy/agent.ts` | The strategy: valuation, money, bidding, play timing |
 | `src/strategy/tracker.ts` | Exact bag / unseen-tile tracking and opponent racks from public events |
@@ -71,7 +72,7 @@ node sim/trace.ts 3 Vickrey                      # round-by-round trace of one m
 node sim/compare.ts --variants '[{"label":"a"},{"label":"b","mu0":0.3}]' --fields self-v,league-f
 node sim/latency.ts 60                           # decision latency with precompute on
 node sim/threats.ts --only shadow,slow,mixed      # final vs 5 copies of an adversary, slow network, mixed pool
-npm test                                         # unit tests (65)
+npm test                                         # unit tests (66)
 npm run typecheck                                # tsc over src/, sim/, test/, scripts/ (needs npm install + bindings)
 ```
 
@@ -132,6 +133,10 @@ npm run get-token                                            # any later token f
 
 Team names are 1–48 characters, bot names 1–32, and both must be unused.
 Each run adds one more credential to your bot; old tokens keep working.
+There is no rename. To start over with new names (only while the bot isn't
+in a tournament under way), run `spacetime call scrabblebot leave_team`:
+as the last member, that deletes the team, the bot and all its tokens.
+Then run `get-token` again with the new names.
 
 **Windows (recommended): the launcher.**
 
@@ -178,6 +183,15 @@ What the bot does by itself:
   seated in tournament matches. The bot detects them from
   `botCredential.connected`, and treats one live opponent plus offline
   seats as a 2-bot match.
+- **Memory:** it never subscribes to whole tables. The live database keeps
+  every match ever played (about 11 million public rows on 2026-10-22), and
+  subscribing to all of it crashed Node with an out-of-memory error. It
+  subscribes to the small tables first, then only to its own slice: its rack,
+  entries and lobbies, and the rows of its own matches, joined through
+  `match_participant` (`src/live/queries.ts`). For a new bot that loads in
+  about 0.15 s with a 15 MB heap; the heaviest existing bot (783 matches)
+  loads in 0.6 s with 117 MB. `npx tsx scripts/sub-probe.ts <bot id>`
+  measures it (read-only, anonymous).
 - **Resilience:**
   - It reconnects with backoff after a disconnect.
   - If it restarts mid-match, it replays the match's public history.
