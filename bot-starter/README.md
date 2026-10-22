@@ -18,11 +18,12 @@ live bot needs the npm dependencies.
 |---|---|
 | `src/index.ts` | Live client glue: SDK connection, subscription, reconnect |
 | `src/live/adapter.ts` | Live match logic: per-match sessions, event ordering, restart replay, reducer calls. It is SDK-free, so `test/live.test.ts` drives it with a fake server |
-| `run.ps1` | Windows launcher: hidden token prompt, keeps the PC awake, restarts the bot on a crash |
+| `run.ps1` | Windows launcher: checks the bindings against the live schema, hidden token prompt, keeps the PC awake, restarts the bot on a crash |
+| `scripts/` | `get-token.ts` (bot token without the website), `check-live-schema.mjs` / `sync-live-bindings.mjs` (keep the bindings matched to the live server) |
 | `src/strategy.ts` | The shipped configuration (`FINAL_PARAMS`), plus `decideBid` / `chooseWord` |
 | `src/strategy/agent.ts` | The strategy: valuation, money, bidding, play timing |
 | `src/strategy/tracker.ts` | Exact bag / unseen-tile tracking and opponent racks from public events |
-| `src/strategy/params.ts`, `versions.ts` | Tunable parameters and the frozen earlier versions v1–v6 |
+| `src/strategy/params.ts`, `versions.ts` | Tunable parameters and the frozen earlier versions v1–v7 |
 | `src/game/` | Scoring (`letters.ts`), dictionary index and word search (`dictionary.ts`), RNG, shared types |
 | `sim/engine.ts` | Headless replica of one match (auction, payment, scoring, end conditions) |
 | `sim/baselines/` | Baseline opponents. `starter-strategy.ts` is the unmodified original starter; `strong.ts` holds the adversaries built on our own agent (shadow, late, outbid, jitter) |
@@ -56,7 +57,7 @@ strategy be told apart.
 
 Strategy names:
 - `final`
-- `v1`…`v6`
+- `v1`…`v7`
 - `agent`: the current defaults
 - `aggr`, `cons`, `nocash`: style variants
 - `starter`, `greedy`, `overbidder`, `hoarder`, `random`: baselines
@@ -70,8 +71,8 @@ node sim/trace.ts 3 Vickrey                      # round-by-round trace of one m
 node sim/compare.ts --variants '[{"label":"a"},{"label":"b","mu0":0.3}]' --fields self-v,league-f
 node sim/latency.ts 60                           # decision latency with precompute on
 node sim/threats.ts --only shadow,slow,mixed      # final vs 5 copies of an adversary, slow network, mixed pool
-npm test                                         # unit tests (56)
-npm run typecheck                                # tsc over src/, sim/, test/ (needs npm install + bindings)
+npm test                                         # unit tests (65)
+npm run typecheck                                # tsc over src/, sim/, test/, scripts/ (needs npm install + bindings)
 ```
 
 To reproduce every table in RESULTS.md, run `node sim/evaluate.ts --matches 1000`.
@@ -111,8 +112,26 @@ candidate only if it clearly beats the incumbent. The log goes to
 ## Live bot
 
 The bot targets the tournament version of the module (upstream `3064b36`,
-SpacetimeDB 2.12). See [RULES.md](RULES.md) for what changed from the
-earlier Rust module.
+SpacetimeDB 2.12), with its bindings patched to the schema the live
+`scrabblebot` database actually runs. That module is newer than any
+published commit (round robin plus finals); see
+[RULES.md](RULES.md#the-live-server-runs-a-newer-unpublished-module).
+
+**Getting a token (no website needed).** The team page that used to mint
+tokens isn't reachable, so `scripts/get-token.ts` runs the module's own
+credential flow: as you, it creates your team and bot (first time only) and
+mints a single-use code; then a brand-new identity redeems the code and
+becomes a credential for your bot. That identity's token is copied to the
+clipboard, never printed or saved.
+
+```powershell
+spacetime login                                              # once; opens the browser
+npm run get-token -- --team "<team name>" --bot "<bot name>" # first time
+npm run get-token                                            # any later token for the same bot
+```
+
+Team names are 1–48 characters, bot names 1–32, and both must be unused.
+Each run adds one more credential to your bot; old tokens keep working.
 
 **Windows (recommended): the launcher.**
 
@@ -142,16 +161,17 @@ BOT_NAME=<name> BOT_TOKEN=<token> npm start
 What the bot does by itself:
 - **Tournaments:** entry is opt-in on the tournament module. The bot calls
   `registerForTournament` for every tournament that is taking
-  registrations: at startup, and every 3 s after that. It logs its Swiss
-  points, total score and any elimination. Set `AUTO_TOURNAMENT=0` to turn
-  this off.
+  registrations: at startup, and every 3 s after that. It logs its
+  standing (round-robin wins and total score on the live module) and any
+  elimination. Set `AUTO_TOURNAMENT=0` to turn this off.
 - **Lobbies:** it joins the open lobby and rejoins after each match. It
   doesn't try while held for a tournament, because the module refuses
   entrants then. Set `AUTO_LOBBY=0` to turn this off.
 - **Logs:** one line per auction, plus a summary at match end. Set
   `LOG_ROUNDS=0` for quieter logs.
-- **Per-match settings:** it reads each match's auction length and rack size
-  (admin-configurable, 250 ms–10 s). It bids within milliseconds and uses
+- **Per-match settings:** it reads each auction's window from the auction
+  row (`closesAt − opensAt`; admin-configurable, 250 ms–10 s) and infers
+  the rack size from what it observes. It bids within milliseconds and uses
   the rest of the window to precompute the next round. On windows under
   800 ms it skips the precompute so it can never delay a bid.
 - **Offline opponents:** registered bots that aren't connected are still
@@ -168,10 +188,14 @@ What the bot does by itself:
 
 Notes:
 - **The token** is read only from `BOT_TOKEN`. It is never written to disk
-  or logged; `.token-*` files are gitignored anyway. Get one from the team
-  page on the live site.
+  or logged; `.token-*` files are gitignored anyway. Get one with
+  `npm run get-token` (above).
 - **Bindings:** the 2.12 bindings in `src/module_bindings/` (gitignored)
   were exported from upstream's checked-in web bindings, which the 2.12 CLI
-  generated from the same module. `npm run generate` with a 2.12
-  `spacetime` CLI regenerates them. The SDK is `spacetimedb` 2.12.0, the
-  same version upstream's lockfile pins.
+  generated from `3064b36`. The SDK decodes rows by column position, so
+  they must match the live server exactly: `npm run check-schema` compares
+  every table and enum (names and types, in order) with the live schema,
+  and `npm run sync-bindings` patches the known differences (4 tables, 2
+  enums). `run.ps1` does both before every start; `npm run generate`
+  regenerates from source and then syncs. The SDK is `spacetimedb` 2.12.0,
+  the same version upstream's lockfile pins.

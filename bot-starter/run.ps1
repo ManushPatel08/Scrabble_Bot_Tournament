@@ -43,6 +43,18 @@ if (-not (Test-Path "node_modules")) {
   npm install
 }
 
+# The live module is newer than its published source, and the SDK decodes
+# rows by column position, so check the bindings against the live schema
+# (read-only HTTP) and patch them if the server has drifted.
+node scripts/check-live-schema.mjs
+if ($LASTEXITCODE -eq 1) {
+  node scripts/sync-live-bindings.mjs
+  node scripts/check-live-schema.mjs
+  if ($LASTEXITCODE -eq 1) {
+    Write-Warning "The live schema changed in a way scripts/sync-live-bindings.mjs doesn't cover (see above). The bot may misread those tables."
+  }
+}
+
 # Keep the system awake while this script runs (ES_CONTINUOUS | ES_SYSTEM_REQUIRED).
 Add-Type -Namespace ScrabbleBot -Name Power -MemberDefinition @"
 [System.Runtime.InteropServices.DllImport("kernel32.dll")]

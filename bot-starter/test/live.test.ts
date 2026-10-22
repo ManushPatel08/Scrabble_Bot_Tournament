@@ -130,9 +130,12 @@ test("stays out of the lobby while held for a tournament under way", () => {
   assert.ok(bot.onApplied(ME_IDENTITY)); // registers, and (not held yet) joins the lobby
   drain();
   const before = joins;
-  server.tournaments[0]!.status = { tag: "Swiss" };
-  bot.tick();
-  assert.equal(joins, before, "no lobby join while in contention");
+  // Upstream's Swiss phase and every phase of the live round robin + finals.
+  for (const tag of ["Swiss", "RoundRobin", "FinalsReady", "FinalsRunning", "FinalsIntermission", "FinalsTieReplay"]) {
+    server.tournaments[0]!.status = { tag };
+    bot.tick();
+    assert.equal(joins, before, `no lobby join while in contention (${tag})`);
+  }
   server.entries[0]!.eliminated = true;
   bot.tick();
   assert.equal(joins, before + 1, "rejoins the lobby once knocked out");
@@ -140,11 +143,12 @@ test("stays out of the lobby while held for a tournament under way", () => {
 
 test("plays a full match with 250 ms auctions (precompute skipped)", () => {
   const server = new FakeServer(42n, "FirstPrice", SIMS, 6);
-  const { bot, drain } = harness(server);
+  server.auctionMs = 250n;
+  const { bot, logs, drain } = harness(server);
   assert.ok(bot.onApplied(ME_IDENTITY));
   server.start(0);
-  (server as unknown as { match: { auctionDurationMs: bigint } }).match.auctionDurationMs = 250n;
   playOut(server, drain);
+  assert.ok(logs.some((l) => l.includes("250 ms auctions")), "window read from the auction row");
   assert.equal(bot.finished.length, 1);
   assert.equal(bot.finished[0]!.place, 1);
   assert.equal(bot.errors, 0);

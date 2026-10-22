@@ -4,8 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "generate": "npm install --prefix ../spacetimedb && spacetime generate --lang typescript --out-dir src/module_bindings --module-path ../spacetimedb",
+    "generate": "npm install --prefix ../spacetimedb && spacetime generate --lang typescript --out-dir src/module_bindings --module-path ../spacetimedb && node scripts/sync-live-bindings.mjs",
+    "sync-bindings": "node scripts/sync-live-bindings.mjs",
+    "check-schema": "node scripts/check-live-schema.mjs",
     "start": "tsx src/index.ts",
+    "get-token": "tsx scripts/get-token.ts",
     "build": "tsc",
     "typecheck": "tsc -p tsconfig.check.json",
     "test": "node --test \"test/*.test.ts\"",

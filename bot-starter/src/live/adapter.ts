@@ -2,7 +2,8 @@
 // against a fake server (test/live.test.ts). `LiveConn` is the subset of the
 // generated DbConnection this bot uses. Names match the bindings that
 // SpacetimeDB 2.12 generates for the tournament module (upstream commit
-// 3064b36): table handles and index accessors are camelCase
+// 3064b36, patched to the live schema by scripts/sync-live-bindings.mjs):
+// table handles and index accessors are camelCase
 // (`conn.db.matchState`, `auctionResult.auctionId`), rows use camelCase
 // fields, enums are `{ tag }`, and reducers return promises.
 
@@ -22,12 +23,20 @@ export interface MatchRow {
   currentRound: number;
   bagTotal: number;
   auctionType: Tag<string>;
-  /** Per-match settings from the matchmaker config (schema.ts:284-285). */
+  /** Per-match settings in upstream 3064b36 (schema.ts:284-285); the live module dropped them. */
   auctionDurationMs?: bigint;
   startingRackSize?: number;
 }
+type Timestamp = { microsSinceUnixEpoch: bigint };
 export interface ParticipantRow { id: bigint; matchId: bigint; botId: bigint; balance: bigint; score: bigint }
-export interface AuctionRow { id: bigint; matchId: bigint; letter: string; status: Tag<string> }
+export interface AuctionRow {
+  id: bigint;
+  matchId: bigint;
+  letter: string;
+  status: Tag<string>;
+  opensAt?: Timestamp;
+  closesAt?: Timestamp;
+}
 export interface ResultRow { auctionId: bigint; matchId: bigint; letter: string; winnerBotId?: bigint | null; paid: bigint }
 export interface WordRow { id: bigint; matchId: bigint; botId: bigint; word: string; totalReward: bigint }
 export interface RackRow { matchId: bigint; letter: string; count: number }
@@ -40,7 +49,34 @@ export interface TournamentEntryRow {
   botId: bigint;
   swissPoints: number;
   eliminated: boolean;
-  totalScore: bigint;
+  /** Upstream 3064b36. */
+  totalScore?: bigint;
+  /** Live module (round robin, then finals). */
+  roundRobinWins?: number;
+  roundRobinTotalScore?: bigint;
+}
+
+/**
+ * Tournament phases in which an entered, non-eliminated bot is held out of
+ * casual lobbies: upstream's Swiss/Bracket/Final (tournament.ts:20-35) and
+ * the live module's round robin and finals.
+ */
+const UNDERWAY = new Set([
+  "Swiss",
+  "Bracket",
+  "Final",
+  "RoundRobin",
+  "FinalsReady",
+  "FinalsRunning",
+  "FinalsIntermission",
+  "FinalsTieReplay",
+]);
+
+/** Auction window in ms from the auction row, if it carries its times. */
+function windowMs(a: AuctionRow): number | undefined {
+  if (!a.opensAt || !a.closesAt) return undefined;
+  const ms = Number(a.closesAt.microsSinceUnixEpoch - a.opensAt.microsSinceUnixEpoch) / 1000;
+  return ms > 0 ? ms : undefined;
 }
 
 interface Iter<R> {
@@ -150,7 +186,9 @@ export class LiveBot {
     this.myBotId = cred.botId;
     for (const p of this.conn.db.matchParticipant.iter()) if (p.botId === this.myBotId) this.myMatches.add(p.matchId);
     this.checkTournaments();
-    for (const a of this.conn.db.auction.iter()) if (a.status.tag === "Open") this.onAuctionOpen(a.id, a.matchId, a.letter);
+    for (const a of this.conn.db.auction.iter()) {
+      if (a.status.tag === "Open") this.onAuctionOpen(a.id, a.matchId, a.letter, windowMs(a));
+    }
     this.joinLobby();
     return true;
   }
@@ -193,7 +231,7 @@ export class LiveBot {
     this.pendingOpens++;
     this.o.defer(() => {
       this.pendingOpens--;
-      this.guard(`auction ${a.id}`, () => this.onAuctionOpen(a.id, a.matchId, a.letter));
+      this.guard(`auction ${a.id}`, () => this.onAuctionOpen(a.id, a.matchId, a.letter, windowMs(a)));
     });
   }
 
@@ -232,10 +270,11 @@ export class LiveBot {
   onEntryChange(e: TournamentEntryRow): void {
     this.guard("entry change", () => {
       if (e.botId !== this.myBotId) return;
-      this.o.log(
-        `tournament ${e.tournamentId}: swiss points ${e.swissPoints}, total score ${e.totalScore}` +
-          (e.eliminated ? ", ELIMINATED" : ""),
-      );
+      const standing =
+        e.roundRobinWins !== undefined
+          ? `round-robin wins ${e.roundRobinWins}, total score ${e.roundRobinTotalScore ?? "?"}`
+          : `swiss points ${e.swissPoints}, total score ${e.totalScore ?? "?"}`;
+      this.o.log(`tournament ${e.tournamentId}: ${standing}` + (e.eliminated ? ", ELIMINATED" : ""));
     });
   }
 
@@ -281,8 +320,7 @@ export class LiveBot {
       if (e.botId !== this.myBotId || e.eliminated) continue;
       for (const t of db.tournament.iter()) {
         if (t.id !== e.tournamentId) continue;
-        const tag = t.status.tag;
-        if (tag === "Swiss" || tag === "Bracket" || tag === "Final") return true;
+        if (UNDERWAY.has(t.status.tag)) return true;
       }
     }
     return false;
@@ -302,7 +340,7 @@ export class LiveBot {
       .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
 
-  private startSession(matchId: bigint): Session | null {
+  private startSession(matchId: bigint, window?: number): Session | null {
     const db = this.conn.db;
     const parts = this.participantsOf(matchId);
     const seat = parts.findIndex((p) => p.botId === this.myBotId);
@@ -317,7 +355,7 @@ export class LiveBot {
       return tag === "Cheapskate" || tag === "ValueBidder" || tag === "Aggressive" ? tag : null;
     });
     const auctionType: AuctionType = m.auctionType.tag === "FirstPrice" ? "FirstPrice" : "Vickrey";
-    const auctionMs = Number(m.auctionDurationMs ?? 1000n);
+    const auctionMs = window ?? Number(m.auctionDurationMs ?? 1000n);
     // Offline = a non-sim bot none of whose credentials is connected.
     const online = new Set<bigint>();
     for (const c of db.botCredential.iter()) if (c.connected) online.add(c.botId);
@@ -413,15 +451,15 @@ export class LiveBot {
     s.pendingWords = [];
   }
 
-  onAuctionOpen(auctionId: bigint, matchId: bigint, letter: string): void {
+  onAuctionOpen(auctionId: bigint, matchId: bigint, letter: string, window?: number): void {
     if (this.myBotId === null) return;
     const db = this.conn.db;
     let s = this.sessions.get(matchId);
     if (!s) {
       if (!this.myMatches.has(matchId)) return;
-      s = this.startSession(matchId) ?? undefined;
+      s = this.startSession(matchId, window) ?? undefined;
       if (!s) return;
-    }
+    } else if (window !== undefined) s.auctionMs = window;
     if (s.handledAuctions.has(auctionId)) return;
     const m = db.matchState.id.find(matchId);
     if (!m || m.status.tag !== "Running") return;

@@ -53,8 +53,9 @@ export class FakeServer implements LiveConn {
   readonly tournaments: TournamentRow[] = [];
   readonly entries: TournamentEntryRow[] = [];
   registerCalls = 0;
-  /** Per-match config (setMatchmakerConfig): auction window. */
+  /** Auction window (the live module has it only on auction rows: closes_at - opens_at). */
   auctionMs = 1000n;
+  private clockMicros = 1_700_000_000_000_000n;
   private match: MatchRow;
   /** Every reducer error, as the SDK would report it. */
   readonly errors: string[] = [];
@@ -82,8 +83,6 @@ export class FakeServer implements LiveConn {
       currentRound: 0,
       bagTotal: 98,
       auctionType: { tag: auctionType },
-      auctionDurationMs: 1000n,
-      startingRackSize: 5,
     };
   }
 
@@ -143,7 +142,15 @@ export class FakeServer implements LiveConn {
       if (!t) return this.fail("Unknown tournament");
       if (t.status.tag !== "Registration") return this.fail("Tournament is not taking registrations");
       if (this.entries.some((e) => e.tournamentId === tournamentId && e.botId === this.meBotId)) return Promise.resolve();
-      this.entries.push({ id: this.seq++, tournamentId, botId: this.meBotId, swissPoints: 0, eliminated: false, totalScore: 0n });
+      this.entries.push({
+        id: this.seq++,
+        tournamentId,
+        botId: this.meBotId,
+        swissPoints: 0,
+        eliminated: false,
+        roundRobinWins: 0,
+        roundRobinTotalScore: 0n,
+      });
       return Promise.resolve();
     },
   };
@@ -202,7 +209,15 @@ export class FakeServer implements LiveConn {
 
   private openAuction(letter: string) {
     this.match.currentRound++;
-    const a: AuctionRow = { id: this.seq++, matchId: this.matchId, letter, status: { tag: "Open" } };
+    const opens = (this.clockMicros += this.auctionMs * 1000n);
+    const a: AuctionRow = {
+      id: this.seq++,
+      matchId: this.matchId,
+      letter,
+      status: { tag: "Open" },
+      opensAt: { microsSinceUnixEpoch: opens },
+      closesAt: { microsSinceUnixEpoch: opens + this.auctionMs * 1000n },
+    };
     this.auctions.push(a);
     this.bids = [];
     for (const p of this.parts) {

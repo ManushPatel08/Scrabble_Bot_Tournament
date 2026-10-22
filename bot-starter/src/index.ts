@@ -3,7 +3,7 @@
 //   BOT_NAME=<name> BOT_TOKEN=<token> npm start
 //
 // The token is read only from the BOT_TOKEN environment variable. It is never
-// written to disk or logged. Get one from the team page on the live site.
+// written to disk or logged. Get one with `npm run get-token` (README).
 //
 // Optional env: STDB_HOST, STDB_DB, AUTO_LOBBY=0 (don't join casual lobbies),
 // AUTO_TOURNAMENT=0 (don't register for tournaments; by default the bot
@@ -25,7 +25,7 @@ const BOT_NAME = process.env.BOT_NAME ?? "bot";
 
 const TOKEN = process.env.BOT_TOKEN;
 if (!TOKEN) {
-  console.error(`[${BOT_NAME}] BOT_TOKEN is not set. Generate a token on the team page and run:`);
+  console.error(`[${BOT_NAME}] BOT_TOKEN is not set. Get a token with 'npm run get-token', then run:`);
   console.error(`  BOT_NAME=${BOT_NAME} BOT_TOKEN=<token> npm start`);
   process.exit(2); // configuration error: run.ps1 doesn't restart on code 2
 }
@@ -58,7 +58,7 @@ function onConnect(conn: DbConnection, identity: Identity, _token: string) {
     .subscriptionBuilder()
     .onApplied(() => {
       if (!b.onApplied(identity)) {
-        console.error(`[${BOT_NAME}] this token is not a credential for any bot — generate a fresh one on /team`);
+        console.error(`[${BOT_NAME}] this token is not a credential for any bot — get a fresh one with 'npm run get-token'`);
         process.exit(2); // configuration error: run.ps1 doesn't restart on code 2
       }
       log(`acting as bot '${conn.db.bot.id.find(b.myBotId!)?.name ?? "?"}' (id ${b.myBotId})`);

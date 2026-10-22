@@ -430,8 +430,18 @@ re-run of every scenario above.
   against the league and the baselines: per-opponent first-price model, a
   cheaper first-price money price than 0.35, and the Vickrey exponent 0.5.
   Changes were adopted only when the diverse fields agreed.
+- **The live module's game code is unpublished.** The live database runs a
+  newer module than any public commit (round robin plus finals; see
+  [RULES.md](RULES.md#the-live-server-runs-a-newer-unpublished-module)).
+  Its schema was checked, and the bindings now match it column for column.
+  Its scoring, auction and sim rules are assumed unchanged from `3064b36`,
+  because every reducer the bot calls kept its signature. The likely
+  ranking (round-robin wins, then total score) is the objective the tuning
+  already used.
 - **Not yet run against the live server.** That step is the user's. See
-  README → Live bot.
+  README → Live bot. The token helper's claim step was exercised against
+  the live server with an invalid code (rejected as expected: "No such
+  nonce").
 
 ## Baselines (checkpoint 2)
 

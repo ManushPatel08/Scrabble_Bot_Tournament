@@ -13,6 +13,29 @@ that affects play. Where the README or the `/docs` page (`src/pages/Docs.tsx`)
 disagree with the code, the code wins; see
 [where the docs are wrong](#where-the-docs-are-wrong).
 
+## The live server runs a newer, unpublished module
+
+Checked 2026-10-22 against the live `scrabblebot` database on maincloud,
+through its public schema (`npm run check-schema`). The database runs a
+module **newer than any published commit**: none of the 12 branches on
+GitHub contains its round-robin code. Its game logic can't be read, so
+everything below the schema level is still verified against `3064b36`.
+
+| # | Live schema | Effect on this bot |
+|---|---|---|
+| L1 | `match_state` has **no** `auction_duration_ms` / `starting_rack_size` (they remain in `matchmaker_config`, which is empty live, so the module's defaults apply) | bindings patched (`npm run sync-bindings`); the client reads the window from each auction row (`closes_at − opens_at`), and the tracker infers rack size from observation (C4) |
+| L2 | `tournament.status` variants, in order: `Lobby, Swiss, Bracket, Final, Ended, Registration, RoundRobin, FinalsReady, FinalsRunning, FinalsIntermission, FinalsTieReplay, Crowned`. `ForceEnded` is gone | enum patched (rows decode by variant index); the client holds out of lobbies in `RoundRobin` and every `Finals*` phase |
+| L3 | `tournament` adds `desired_min_matches_per_bot` (default 5), `actual_matches_per_bot`, `finals_size` (default 6) and `current_finals_match`; `create_tournament(desired_min_matches_per_bot, finals_size, auction_type)` | format: a round robin in which every entrant plays at least N matches, then finals among the top `finals_size` |
+| L4 | `tournament_entry` replaces `total_score` with `round_robin_wins` (u32) and `round_robin_total_score` (i64); keeps `swiss_points`, `eliminated`, `final_finish_position` | standings are most likely **wins, then total score**. The client logs both |
+| L5 | `tournament_match.phase` adds `RoundRobin` and `FinalReplay`; new columns `finals_match_number`, `replay_of_finals_match` | finals are numbered matches; **a tied finals match is replayed** |
+| L6 | new table `pending_match_seat (tournament_id, round_robin_index, seat, bot_id)` | round-robin seating is planned ahead |
+| L7 | the reducers the bot calls are unchanged: `submit_bid(auction_id, amount)`, `submit_word(match_id, word)`, `join_lobby()`, `register_for_tournament(tournament_id)`. New admin-only: `admin_register_all_sim_bots`, `spawn_sim_bots_to`, `start_next_finals_match` | none. Sims may be entered in the tournament, which suits this bot (its best fields) |
+
+The phase order in L2 and the ranking in L4 are read from names and
+defaults, not code. Ranking by first places matches what the tuning
+optimised: win rate (first place) in self-play, the league and the baseline
+field ([RESULTS.md](RESULTS.md)), with total score as the tiebreak.
+
 ## Verified mechanics
 
 ### Match setup
