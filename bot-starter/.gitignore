@@ -1,0 +1,6 @@
+node_modules/
+dist/
+src/module_bindings/
+# Bot tokens must never be committed (the client never writes them, but the
+# stock starter used to).
+.token-*

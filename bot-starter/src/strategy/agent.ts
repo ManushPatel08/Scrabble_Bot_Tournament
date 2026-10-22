@@ -1,0 +1,628 @@
+// The ScrabbleBot strategy. One Agent per match; it implements the Policy
+// interface used by both the live client and the simulator.
+//
+// Per auction:
+//  1. update the tracker (unseen pool, opponents' racks, prices)
+//  2. sample S possible futures F_s = the letters we may still win, drawn
+//     from the unseen pool (common random numbers for every comparison
+//     below)
+//  3. chooseWords: play words now when the money is worth more than the
+//     flexibility lost by committing the letters (the final auction plays
+//     out the optimal partition of the whole rack)
+//  4. decideBid: marginal value of the letter in score points
+//     v = mean_s [G(R+L+F_s) - G(R+F_s)]   (G = greedy word-set value)
+//     converted to currency with the shadow price of money mu, then
+//     adjusted for the payment rule (Vickrey: bid value; first-price: best
+//     response to predicted sim bids and the observed external bids)
+
+import { type WordIndex, sharedIndex } from "../game/dictionary.ts";
+import {
+  BAG_DISTRIBUTION,
+  type Counts,
+  LETTER_VALUES,
+  N_LETTERS,
+  VOWELS,
+  letterIndex,
+} from "../game/letters.ts";
+import { Rng } from "../game/rng.ts";
+import type {
+  AuctionOutcome,
+  AuctionView,
+  Decision,
+  MatchStart,
+  Policy,
+  WordPlayed,
+} from "../game/types.ts";
+import { type Params, withParams } from "./params.ts";
+import { MatchTracker } from "./tracker.ts";
+
+let letterWeights: number[] | null = null;
+
+/** Share of each letter in 7-8 letter words divided by its share of the bag. */
+function wordLetterWeights(idx: WordIndex): number[] {
+  if (letterWeights) return letterWeights;
+  const inWords = new Array<number>(N_LETTERS).fill(0);
+  let total = 0;
+  for (let s = 0; s < idx.nSigs; s++) {
+    const len = idx.sigLen[s]!;
+    if (len < 7 || len > 8) continue;
+    for (let c = 0; c < N_LETTERS; c++) inWords[c]! += idx.sigCounts[s * N_LETTERS + c]!;
+    total += len;
+  }
+  letterWeights = inWords.map((n, c) => Math.max(0.05, n / total / (BAG_DISTRIBUTION[c]! / 98)));
+  return letterWeights;
+}
+
+function rackKey(r: Counts): string {
+  return String.fromCharCode(...r);
+}
+
+/** How far a sim's bid wanders either side of its base (game.ts:697-699). */
+export const SIM_BID_JITTER = 2;
+
+/**
+ * A sim's bid with a given jitter (game.ts:703-727): base + jitter, floored
+ * at 1, capped at balance. Strategy and balance are public (`bot.strategy`,
+ * `matchParticipant.balance`); only the jitter, uniform in [-2, 2], is not.
+ */
+export function predictSimBid(strategy: string, letter: number, balance: number, jitter = 0): number {
+  const value = LETTER_VALUES[letter]!;
+  let base: number;
+  if (strategy === "Cheapskate") base = value - 1;
+  else if (strategy === "ValueBidder") base = value;
+  else base = value + (VOWELS[letter] ? 4 : 2);
+  return Math.max(Math.min(Math.max(base + jitter, 1), balance), 0);
+}
+
+/**
+ * P(our first-price bid b beats every sim), over the sims' jitter. Equal
+ * bids are resolved at random (game.ts:485-488), so a tie counts half.
+ */
+export function simBeatProb(sims: readonly { strategy: string; balance: number }[], letter: number, b: number): number {
+  let p = 1;
+  for (const sim of sims) {
+    let q = 0;
+    for (let j = -SIM_BID_JITTER; j <= SIM_BID_JITTER; j++) {
+      const v = predictSimBid(sim.strategy, letter, sim.balance, j);
+      q += v <= 0 || v < b ? 1 : v === b ? 0.5 : 0;
+    }
+    p *= q / (2 * SIM_BID_JITTER + 1);
+  }
+  return p;
+}
+
+export interface Timing {
+  wordMs: number;
+  bidMs: number;
+}
+
+export class Agent implements Policy {
+  readonly name: string;
+  readonly p: Params;
+  readonly t = new MatchTracker();
+  private idx: WordIndex;
+  private rng = new Rng(1);
+  private futures: Counts[] = [];
+  /** Market model: our value for each auctioned letter and the price it took. */
+  private market: { v: number; p: number }[] = [];
+  private lastValue = -1;
+  private lastBid = 0;
+  /** Adaptive pacing state: log multiplier on mu, and this round's budget target. */
+  private logPace = 0;
+  private paceTarget = 0;
+  /** Wall time of the last chooseWords / decideBid calls. */
+  timing: Timing = { wordMs: 0, bidMs: 0 };
+  /** Rack after this round's plays (what we hold if we lose the auction). */
+  private lastRack: Counts | null = null;
+  /** Precomputed by prepareNext() for the next round (live only). */
+  private prepared: { key: string; futures: Counts[]; values: number[] | null; partition: string[] | null } | null =
+    null;
+  /** Letter values valid for this round's futures and the rack with this key. */
+  private valueCache: { key: string; values: number[] } | null = null;
+
+  constructor(params: Partial<Params> = {}, name = "agent", index?: WordIndex) {
+    this.p = withParams(params);
+    this.name = name;
+    this.idx = index ?? sharedIndex();
+  }
+
+  onMatchStart(m: MatchStart): void {
+    this.t.start(m);
+    this.rng = new Rng(m.seed);
+    this.logPace = 0;
+    this.paceTarget = 0;
+    this.lastRack = null;
+    this.market = [];
+    this.lastValue = -1;
+    this.lastBid = 0;
+    this.prepared = null;
+    this.valueCache = null;
+  }
+
+  onAuctionResult(r: AuctionOutcome): void {
+    this.t.result(r);
+    if (this.lastValue >= 0) {
+      // Price we would have had to pay for this letter.
+      let price: number;
+      if (r.winner === null) price = 1;
+      else if (r.winner === this.t.seat) price = Math.max(1, r.paid);
+      else if (this.t.auctionType === "Vickrey") price = Math.max(r.paid, this.lastBid) + 1;
+      else price = r.paid + 1;
+      this.market.push({ v: this.lastValue, p: price });
+      this.lastValue = -1;
+    }
+    // Pacing: nudge mu up when we spend faster than balance/remaining
+    // auctions, down when slower, so the money runs out near the end.
+    if (this.p.paceRate > 0 && this.paceTarget > 0) {
+      const spend = r.winner === this.t.seat ? r.paid : 0;
+      this.logPace += (this.p.paceRate * (spend - this.paceTarget)) / Math.max(1, this.paceTarget);
+      this.logPace = Math.max(-3, Math.min(3, this.logPace));
+    }
+  }
+
+  onWordPlayed(w: WordPlayed): void {
+    this.t.word(w);
+  }
+
+  onAuction(v: AuctionView): Decision {
+    const t = this.t;
+    t.openAuction(v.round, v.letter, v.bagTotal);
+    const rack = v.rack.slice();
+    const balances = v.balances.slice();
+    const key = rackKey(rack);
+    const prep = this.prepared;
+    this.prepared = null;
+    this.valueCache = null;
+    if (prep && prep.key === key) {
+      // Rack unchanged since prepareNext(): reuse its futures and values.
+      this.futures = prep.futures;
+      this.evMemo.clear();
+      if (prep.values) this.valueCache = { key, values: prep.values };
+      this.preparedPartition = prep.partition;
+    } else {
+      this.sampleFutures();
+      this.preparedPartition = null;
+    }
+
+    let t0 = performance.now();
+    const words = this.chooseWords(rack, balances);
+    this.timing.wordMs = performance.now() - t0;
+
+    t0 = performance.now();
+    const usable = t.isFinalAuction() ? 0 : t.usableFutureAuctions() + 1;
+    this.paceTarget = usable > 0 ? balances[t.seat]! / usable : 0;
+    const bid = this.decideBid(letterIndex(v.letter), rack, balances, v.scores);
+    this.timing.bidMs = performance.now() - t0;
+
+    t.noteMyBid(bid);
+    this.lastBid = bid;
+    this.lastRack = rack;
+    return { words, bid };
+  }
+
+  private preparedPartition: string[] | null = null;
+
+  /**
+   * Live client calls this after submitting its bid, using the idle part of
+   * the 1 s window: samples next round's futures and values every possible
+   * next letter for the rack we keep if we lose, and precomputes the final
+   * play-out when the next auction is the last one. The next onAuction then
+   * only does lookups when the rack hasn't changed.
+   */
+  prepareNext(): void {
+    const t = this.t;
+    if (!this.lastRack || t.isFinalAuction()) return;
+    const rack = this.lastRack;
+    const nextIsFinal = t.bagTotal === 1;
+    const savedBag = t.bagTotal;
+    // Pretend one more tile has been drawn so futureCount() sees next round.
+    t.bagTotal -= 1;
+    this.sampleFutures();
+    t.bagTotal = savedBag;
+    let values: number[] | null = null;
+    if (!nextIsFinal && this.p.mcValuation) {
+      const base = this.expectedValue(rack);
+      values = new Array<number>(N_LETTERS);
+      for (let c = 0; c < N_LETTERS; c++) {
+        rack[c]!++;
+        values[c] = Math.max(0, this.expectedValue(rack) - base);
+        rack[c]!--;
+      }
+    }
+    const partition = nextIsFinal ? this.idx.bestPartition(rack, 2, 300_000, 400).words : null;
+    this.prepared = { key: rackKey(rack), futures: this.futures, values, partition };
+  }
+
+  // ---------------------------------------------------------------- futures
+
+  /** Expected share of future auctions we win. */
+  winShare(): number {
+    const t = this.t;
+    const done = t.history.length;
+    const active = t.activeN();
+    const prior = this.p.winPriorScale && active > 6 ? (this.p.winPrior * 6) / active : this.p.winPrior;
+    return (t.wins[t.seat]! + prior * this.p.winPriorWeight) / (done + this.p.winPriorWeight);
+  }
+
+  /** Number of future letters per sample. */
+  futureCount(): number {
+    const k = Math.round(this.t.usableFutureAuctions() * this.winShare());
+    return Math.max(0, Math.min(this.p.horizonCap, k));
+  }
+
+  private sampleFutures(): void {
+    const t = this.t;
+    this.evMemo.clear();
+    const k = this.futureCount();
+    const pool: number[] = [];
+    // Without tracking, assume future tiles follow the full starting bag.
+    const src = this.p.trackBag === 0 ? BAG_DISTRIBUTION : t.unseen;
+    for (let c = 0; c < N_LETTERS; c++) for (let j = 0; j < src[c]!; j++) pool.push(c);
+    const kk = Math.min(k, pool.length);
+    this.futures = [];
+    if (this.p.futureBias > 0) {
+      // Weighted sampling without replacement (Efraimidis-Spirakis keys).
+      const w = wordLetterWeights(this.idx);
+      const keys = new Array<number>(pool.length);
+      const order = pool.map((_, i) => i);
+      for (let s = 0; s < this.p.samples; s++) {
+        for (let i = 0; i < pool.length; i++) keys[i] = Math.pow(this.rng.next(), 1 / Math.pow(w[pool[i]!]!, this.p.futureBias));
+        order.sort((a, b) => keys[b]! - keys[a]!);
+        const f = new Array<number>(N_LETTERS).fill(0);
+        for (let i = 0; i < kk; i++) f[pool[order[i]!]!]!++;
+        this.futures.push(f);
+      }
+      return;
+    }
+    for (let s = 0; s < this.p.samples; s++) {
+      const f = new Array<number>(N_LETTERS).fill(0);
+      for (let i = 0; i < kk; i++) {
+        const j = i + this.rng.int(pool.length - i);
+        const tmp = pool[i]!;
+        pool[i] = pool[j]!;
+        pool[j] = tmp;
+        f[pool[i]!]!++;
+      }
+      this.futures.push(f);
+    }
+  }
+
+  /** Per-round memo of expectedValue by rack (futures are fixed within a round). */
+  private evMemo = new Map<string, number>();
+
+  /** Mean over futures of the greedy word-set value of rack + future. */
+  private expectedValue(rack: Counts): number {
+    const key = rackKey(rack);
+    const hit = this.evMemo.get(key);
+    if (hit !== undefined) return hit;
+    const v = this.computeExpectedValue(rack);
+    this.evMemo.set(key, v);
+    return v;
+  }
+
+  private computeExpectedValue(rack: Counts): number {
+    let sum = 0;
+    const r = new Array<number>(N_LETTERS);
+    for (const f of this.futures) {
+      for (let c = 0; c < N_LETTERS; c++) r[c] = rack[c]! + f[c]!;
+      sum += this.idx.greedyValue(r, 2);
+    }
+    return this.futures.length ? sum / this.futures.length : this.idx.greedyValue(rack, 2);
+  }
+
+  /** Marginal score value of adding `letter` to `rack`. */
+  letterValue(letter: number, rack: Counts): number {
+    if (this.t.isFinalAuction()) return 0; // can never be played (lib.rs:2231-2244)
+    if (!this.p.mcValuation) return this.p.faceMult * LETTER_VALUES[letter]! + this.p.faceAdd;
+    if (this.valueCache && this.valueCache.key === rackKey(rack)) return this.valueCache.values[letter]!;
+    const base = this.expectedValue(rack);
+    rack[letter]!++;
+    const withL = this.expectedValue(rack);
+    rack[letter]!--;
+    return Math.max(0, withL - base);
+  }
+
+  // ------------------------------------------------------------------ money
+
+  /** Shadow price of money in score points per unit of currency. */
+  mu(balance: number): number {
+    const formula = this.formulaMu(balance);
+    if (this.p.moneyModel !== 1) return formula;
+    const t = this.t;
+    const m = t.isFinalAuction() ? 0 : t.usableFutureAuctions() + 1;
+    const w = this.market.slice(-this.p.marketWindow);
+    if (m === 0 || w.length === 0) return formula;
+    // Buy the best value-per-price letters until the balance is spent.
+    w.sort((a, b) => b.v / b.p - a.v / a.p);
+    let cum = 0;
+    let threshold = 0.02; // never binding: money is nearly worthless
+    for (const x of w) {
+      cum += x.p;
+      if ((m * cum) / w.length >= balance) {
+        threshold = Math.max(0.02, x.v / x.p);
+        break;
+      }
+    }
+    return (w.length * threshold + this.p.marketPrior * formula) / (w.length + this.p.marketPrior);
+  }
+
+  private formulaMu(balance: number): number {
+    const t = this.t;
+    const frac = (t.bagTotal + 1) / t.totalAuctions();
+    const bal = Math.max(1, balance);
+    const fp = t.auctionType === "FirstPrice";
+    let mu0 = fp && this.p.fpMu0 > 0 ? this.p.fpMu0 : this.p.mu0;
+    const duel = t.activeN() <= this.p.duelMaxN;
+    if (duel && this.p.duelMu0 > 0) mu0 = this.p.duelMu0;
+    const timeExp =
+      fp && this.p.fpMuTimeExp > 0
+        ? this.p.fpMuTimeExp
+        : !fp && duel && this.p.duelMuTimeExp > 0
+          ? this.p.duelMuTimeExp
+          : this.p.muTimeExp;
+    return (
+      mu0 *
+      Math.pow(frac, timeExp) *
+      Math.pow(this.p.refBalance / bal, this.p.muBalExp) *
+      Math.exp(this.logPace)
+    );
+  }
+
+  // ------------------------------------------------------------------ words
+
+  chooseWords(rack: Counts, balances: number[]): string[] {
+    const t = this.t;
+    const me = t.seat;
+    const words: string[] = [];
+    const play = (s: number) => {
+      words.push(this.idx.sigWord[s]!);
+      this.idx.subtract(rack, s);
+      balances[me]! += this.idx.sigReward[s]!;
+    };
+
+    if (t.isFinalAuction() && this.p.endPlayout !== 0) {
+      // Last chance to score: the match ends when this auction closes.
+      const plan =
+        this.p.endPlayout === 1
+          ? this.idx.greedyPartition(rack, 2).words
+          : (this.preparedPartition ?? this.idx.bestPartition(rack, 2, 300_000, 400).words);
+      for (const w of plan) {
+        words.push(w);
+        for (let k = 0; k < w.length; k++) rack[w.charCodeAt(k) - 65]!--;
+      }
+      return words;
+    }
+
+    // Long words take the top multiplier already: play them.
+    for (;;) {
+      const s = this.idx.bestRewardSig(rack, this.p.autoPlayLen);
+      if (s === -1) break;
+      play(s);
+    }
+
+    if (!this.p.cashTiming) return words;
+    // Cash a shorter word when its money is worth more than the expected
+    // loss from committing its letters now.
+    for (let guard = 0; guard < 2; guard++) {
+      const cands = this.idx
+        .playable(rack, this.p.cashMinLen)
+        .sort((a, b) => this.idx.sigReward[b]! - this.idx.sigReward[a]!)
+        .slice(0, 4);
+      if (cands.length === 0) break;
+      const hold = this.expectedValue(rack);
+      const mu = this.mu(balances[me]!);
+      let best = -1;
+      let bestGain = 0;
+      for (const s of cands) {
+        const reward = this.idx.sigReward[s]!;
+        this.idx.subtract(rack, s);
+        const after = this.expectedValue(rack);
+        this.idx.add(rack, s);
+        const gain = reward * (1 + mu) + after - hold;
+        if (gain > bestGain) {
+          bestGain = gain;
+          best = s;
+        }
+      }
+      if (best === -1) break;
+      play(best);
+    }
+    return words;
+  }
+
+  // -------------------------------------------------------------------- bid
+
+  decideBid(letter: number, rack: Counts, balances: number[], scores: readonly number[]): number {
+    const t = this.t;
+    const balance = balances[t.seat]!;
+    if (balance <= 0) return 0;
+    const own = this.letterValue(letter, rack);
+    this.lastValue = own;
+    const value = own + this.denialValue(letter, scores);
+    const reservation = value / this.mu(balance); // currency we'd pay at most
+    const maxBid = value > 0 ? Math.min(balance, Math.floor(reservation)) : 0;
+    if (t.auctionType === "Vickrey") {
+      // A bid equal to the top sim's can't win (sims win ties, lib.rs:2142)
+      // but makes that sim pay its full bid instead of the runner-up's.
+      if (this.p.priceDrive && this.p.formatAware && !t.isFinalAuction()) {
+        const sims = this.simMax(letter, balances);
+        if (maxBid < sims && sims <= balance) return sims;
+      }
+      let bid = maxBid;
+      const taxFrac = t.activeN() <= this.p.duelMaxN && this.p.leaderTaxDuel > 0 ? this.p.leaderTaxDuel : this.p.leaderTax;
+      if (taxFrac > 0 && !t.isFinalAuction() && t.bagTotal >= 3) {
+        let leader = -1;
+        for (let j = 0; j < t.n; j++) {
+          if (j === t.seat || t.inactive(j)) continue;
+          if (leader === -1 || scores[j]! > scores[leader]!) leader = j;
+        }
+        if (leader !== -1 && scores[leader]! >= scores[t.seat]!) {
+          const est = this.letterValue(letter, t.knownRack(leader)) / this.mu(balances[leader]!);
+          const tax = Math.floor(est * taxFrac);
+          if (tax > bid && tax <= balance) bid = tax;
+        }
+      }
+      if (this.p.taxShade < 1 && this.taxed()) bid = Math.floor(bid * this.p.taxShade);
+      if (this.p.bidJitter > 0 && bid > 0) {
+        const f = 1 + (this.rng.next() * 2 - 1) * this.p.bidJitter;
+        bid = Math.max(1, Math.min(balance, Math.round(bid * f)));
+      }
+      return bid;
+    }
+    if (maxBid <= 0) return 0;
+    let fp = this.firstPriceBid(letter, reservation, maxBid, balances);
+    // +1 beats the equal bids that like-minded bots produce; pointless against sims alone.
+    if (fp > 0 && this.p.fpPlus > 0 && this.externalOpponents().length > 0) fp = Math.min(maxBid, fp + this.p.fpPlus);
+    if (!this.p.fpOutbid || t.isFinalAuction()) return fp;
+    // Leader counter-bid: one above the score leader's median winning bid
+    // (scaled by letter value), when that is still within our reservation.
+    let leader = -1;
+    for (let j = 0; j < t.n; j++) if (j !== t.seat && (leader === -1 || scores[j]! > scores[leader]!)) leader = j;
+    if (leader === -1) return fp;
+    const ratios: number[] = [];
+    for (const h of t.history) if (h.winner === leader) ratios.push(h.paid / (LETTER_VALUES[h.letter]! + 2));
+    if (ratios.length < 3) return fp;
+    ratios.sort((a, b) => a - b);
+    const pred = Math.round(ratios[ratios.length >> 1]! * (LETTER_VALUES[letter]! + 2)) + 1;
+    return pred > maxBid || pred <= fp ? fp : pred;
+  }
+
+  /** Mean paid/bid over our last 8 wins; the tax signature is a ratio near 1. */
+  taxRatioRecent(): number {
+    const t = this.t;
+    let sum = 0;
+    let n = 0;
+    for (let i = t.history.length - 1; i >= 0 && n < 8; i--) {
+      const h = t.history[i]!;
+      if (h.winner !== t.seat || h.myBid <= 0) continue;
+      sum += h.paid / h.myBid;
+      n++;
+    }
+    return n >= 4 ? sum / n : 0;
+  }
+
+  private taxed(): boolean {
+    return this.taxRatioRecent() >= this.p.taxRatio;
+  }
+
+  /**
+   * Value of keeping `letter` from the leading opponent: their own marginal
+   * value for it (on the rack we can reconstruct), weighted by how often they
+   * win auctions.
+   */
+  denialValue(letter: number, scores: readonly number[]): number {
+    if (!this.p.denial || this.t.isFinalAuction()) return 0;
+    const t = this.t;
+    let leader = -1;
+    for (let j = 0; j < t.n; j++) {
+      if (j === t.seat) continue;
+      if (leader === -1 || scores[j]! > scores[leader]!) leader = j;
+    }
+    if (leader === -1 || scores[leader]! < scores[t.seat]! - this.p.denialMargin) return 0;
+    const done = Math.max(1, t.history.length);
+    const share = (t.wins[leader]! + 1) / (done + t.n);
+    const theirs = this.letterValue(letter, t.knownRack(leader));
+    return this.p.denial * theirs * share;
+  }
+
+  /** Highest unjittered bid among the sims in this match. */
+  simMax(letter: number, balances: readonly number[]): number {
+    let m = 0;
+    this.t.sims.forEach((s, j) => {
+      if (s && j !== this.t.seat) m = Math.max(m, predictSimBid(s, letter, balances[j]!));
+    });
+    return m;
+  }
+
+  /** Highest bid any sim in this match can make on this letter (jitter +2). */
+  simMaxPossible(letter: number, balances: readonly number[]): number {
+    let m = 0;
+    this.t.sims.forEach((s, j) => {
+      if (s && j !== this.t.seat) m = Math.max(m, predictSimBid(s, letter, balances[j]!, SIM_BID_JITTER));
+    });
+    return m;
+  }
+
+  private simSeats(balances: readonly number[]): { strategy: string; balance: number }[] {
+    const out: { strategy: string; balance: number }[] = [];
+    this.t.sims.forEach((s, j) => {
+      if (s && j !== this.t.seat) out.push({ strategy: s, balance: balances[j]! });
+    });
+    return out;
+  }
+
+  private externalOpponents(): number[] {
+    const out: number[] = [];
+    for (let j = 0; j < this.t.n; j++) if (j !== this.t.seat && !this.t.sims[j]) out.push(j);
+    return out;
+  }
+
+  /** P(max external bid < b) for this letter, from observed first-price winning bids. */
+  private externalCdf(letter: number, b: number): number {
+    const t = this.t;
+    const scale = LETTER_VALUES[letter]! + 2;
+    let below = 0;
+    let n = 0;
+    for (const h of t.history) {
+      if (h.winner === null || h.winner === t.seat || t.sims[h.winner]) continue;
+      const e = (h.paid / (LETTER_VALUES[h.letter]! + 2)) * scale;
+      n++;
+      if (e < b) below++;
+      else if (e === b) below += this.p.tieLoss ? 0 : 0.5;
+    }
+    // Prior: max external bid uniform on [0, 2 * scale], worth 3 observations.
+    const prior = Math.min(1, b / (2 * scale));
+    return (below + 3 * prior) / (n + 3);
+  }
+
+  /**
+   * P(every external opponent bids < b): product over opponents of each
+   * one's empirical CDF of its own first-price winning bids (normalised by
+   * letter value, uniform prior worth 2 observations). An opponent whose
+   * public balance is below b can't outbid us.
+   */
+  private perOpponentCdf(letter: number, b: number, ext: number[], balances: readonly number[]): number {
+    const t = this.t;
+    const scale = LETTER_VALUES[letter]! + 2;
+    const prior = Math.min(1, b / (2 * scale));
+    let p = 1;
+    for (const j of ext) {
+      if (balances[j]! < b) continue;
+      let below = 0;
+      let n = 0;
+      for (const h of t.history) {
+        if (h.winner !== j) continue;
+        const e = (h.paid / (LETTER_VALUES[h.letter]! + 2)) * scale;
+        n++;
+        if (e < b) below++;
+        else if (e === b) below += 0.5;
+      }
+      p *= (below + 2 * prior) / (n + 2);
+    }
+    return p;
+  }
+
+  /**
+   * First-price best response: the bid b maximising P(win | b) x
+   * (reservation - b), where P(win) = P(every sim's jittered bid is lower)
+   * x P(the best external bid is lower), ties counting half.
+   */
+  private firstPriceBid(letter: number, reservation: number, maxBid: number, balances: number[]): number {
+    if (!this.p.formatAware) return Math.max(0, Math.floor(this.p.fpShade * reservation));
+    const sims = this.simSeats(balances);
+    const ext = this.externalOpponents();
+    let best = 0;
+    let bestEv = 0;
+    for (let b = 1; b <= maxBid; b++) {
+      const pSims = sims.length ? simBeatProb(sims, letter, b) : 1;
+      if (pSims === 0) continue;
+      const pExt = ext.length === 0 ? 1 : this.p.fpModel === 1 ? this.perOpponentCdf(letter, b, ext, balances) : this.externalCdf(letter, b);
+      const ev = pSims * pExt * (reservation - b);
+      if (ev > bestEv) {
+        bestEv = ev;
+        best = b;
+      }
+    }
+    return best;
+  }
+}
