@@ -35,6 +35,7 @@ if ($NewToken) {
   if ($Team) { $tokenArgs += @("--team", $Team) }
   if ($Bot) { $tokenArgs += @("--bot", $Bot) }
   $minted = & npx tsx scripts/get-token.ts @tokenArgs | Where-Object { $_ -like "BOT_TOKEN=*" } | Select-Object -Last 1
+  if ($LASTEXITCODE -ne 0 -or -not $minted) { throw "Could not mint the requested bot credential; launcher stopped." }
   if ($minted) { $env:BOT_TOKEN = $minted.Substring(10).Trim() }
   Remove-Variable minted -ErrorAction SilentlyContinue
 }

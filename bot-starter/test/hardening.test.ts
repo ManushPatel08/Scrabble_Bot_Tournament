@@ -6,10 +6,24 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Agent } from "../src/strategy/agent.ts";
 import { VERSIONS } from "../src/strategy/versions.ts";
-import { countsOf, letterIndex } from "../src/game/letters.ts";
+import { countsOf, letterIndex, wordReward } from "../src/game/letters.ts";
 import type { AuctionView, MatchStart } from "../src/game/types.ts";
 
 const FINAL = VERSIONS.final!;
+
+test("experimental valuation and market floors stay affordable and skip the final tile", () => {
+  for (const auctionType of ["Vickrey", "FirstPrice"] as const) {
+    for (const params of [{ endgameExact: 8 }, { valuationBranches: 3 }, { contestPricePrior: 1, contestBudget: 3 }, { futureWinBias: 1, contestPricePrior: 1, contestBudget: 3 }]) {
+      const a = new Agent({ ...FINAL, ...params, samples: 8 }, "experiment");
+      start(a, 6, [null, null, null, null, null, null], auctionType);
+      for (const bagTotal of [40, 8, 3, 1, 0]) {
+        const d = a.onAuction({ ...view(6, "Q"), rack: countsOf("GIINUEMPLOAQE"), bagTotal, balances: [12, 100, 100, 100, 100, 100] });
+        assert.ok(Number.isInteger(d.bid) && d.bid >= 0 && d.bid <= 12 + d.words.reduce((s, w) => s + wordReward(w), 0));
+        if (bagTotal === 0) assert.equal(d.bid, 0);
+      }
+    }
+  }
+});
 
 function start(a: Agent, n: number, sims: (MatchStart["simStrategies"][number])[], auctionType: MatchStart["auctionType"]) {
   a.onMatchStart({

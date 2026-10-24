@@ -73,6 +73,13 @@ export interface Params {
   contestFrac: number;
   /** contestFrac budget: at most this many times balance / usable auctions left per letter. */
   contestBudget: number;
+  /** Blend contest floors with frozen historical per-letter winning bids (0 = off, 1 = full). */
+  contestPricePrior: number;
+  /**
+   * Cap (coins) on bids for J, Q, X and Z before the last third of the match
+   * (0 = off). The live leaders buy them late, at about half the early price.
+   */
+  premiumCap: number;
   /** Cap on future letters per sample (keeps evaluation cheap). */
   horizonCap: number;
   /**
@@ -81,10 +88,16 @@ export interface Params {
    * that fit words (0 = uniform draws).
    */
   futureBias: number;
+  /** Weight future samples by historical own per-letter acquisition rates (0 = off). */
+  futureWinBias: number;
   /** 1 = sample futures from the tracked unseen pool; 0 = from the full 98-tile bag. */
   trackBag: number;
   /** Final auction: 2 = exact best partition, 1 = greedy partition, 0 = no special play-out. */
   endPlayout: number;
+  /** Use exact word-set values in the last this many usable auctions (0 = off). */
+  endgameExact: number;
+  /** Try this many first words in each future's value estimate (0 = greedy). */
+  valuationBranches: number;
 
   // --- money (shadow price mu: score points per unit of currency) ---
   mu0: number;
@@ -121,6 +134,12 @@ export interface Params {
   marketPrior: number;
   /** Recent auctions used by the market model. */
   marketWindow: number;
+  /**
+   * moneyModel 1, Vickrey: price to win an auction a rival won, as a multiple
+   * of what it paid (1 = paid + 1). The winner's own bid is only published
+   * after the match; in the live archive it averages about 1.35x the price.
+   */
+  marketLossMult: number;
 
   // --- auction format ---
   /** 1 = use predicted sim bids / bid shading in first-price. */
@@ -186,10 +205,15 @@ export const DEFAULT_PARAMS: Params = {
   marketCap: 0,
   contestFrac: 1.2,
   contestBudget: 2,
+  contestPricePrior: 0,
+  premiumCap: 0,
   horizonCap: 20,
   futureBias: 0,
+  futureWinBias: 0,
   trackBag: 1,
   endPlayout: 2,
+  endgameExact: 0,
+  valuationBranches: 0,
   mu0: 0.5,
   muTimeExp: 0.7,
   muBalExp: 0.5,
@@ -206,6 +230,7 @@ export const DEFAULT_PARAMS: Params = {
   moneyModel: 0,
   marketPrior: 8,
   marketWindow: 30,
+  marketLossMult: 1,
   formatAware: 1,
   fpShade: 0.7,
   fpModel: 0,

@@ -150,16 +150,18 @@ export class WordIndex {
   private bbBest = 0;
   private bbSig = -1;
   private bbMin = 2;
+  private bbExcluded: ReadonlySet<number> | undefined;
 
   /**
    * Highest reward of a single playable word (>= minLen letters), via
    * branch-and-bound on the subtree maxima. Returns the signature id or -1;
    * ties resolve to the first found (not the lexicographic rule).
    */
-  bestRewardSig(rack: Counts, minLen = 2): number {
+  bestRewardSig(rack: Counts, minLen = 2, excluded?: ReadonlySet<number>): number {
     this.bbBest = 0;
     this.bbSig = -1;
     this.bbMin = minLen;
+    this.bbExcluded = excluded;
     this.bb(0, 0, rack);
     return this.bbSig;
   }
@@ -171,7 +173,7 @@ export class WordIndex {
       if (r[c] === 0) continue;
       r[c]!--;
       const s = this.nodeSig[ch]!;
-      if (s !== -1 && depth + 1 >= this.bbMin && this.sigReward[s]! > this.bbBest) {
+      if (s !== -1 && !this.bbExcluded?.has(s) && depth + 1 >= this.bbMin && this.sigReward[s]! > this.bbBest) {
         this.bbBest = this.sigReward[s]!;
         this.bbSig = s;
       }
@@ -190,6 +192,26 @@ export class WordIndex {
       total += this.sigReward[s]!;
       this.subtract(r, s);
     }
+  }
+
+  /** Try several first words before finishing greedily; includes the greedy plan. */
+  lookaheadValue(rack: Counts, width = 2): number {
+    const excluded = new Set<number>();
+    const first: number[] = [];
+    for (let k = 0; k < Math.min(4, width); k++) {
+      const s = this.bestRewardSig(rack, 2, excluded);
+      if (s === -1) break;
+      first.push(s);
+      excluded.add(s);
+    }
+    let best = 0;
+    const r = rack.slice();
+    for (const s of first) {
+      this.subtract(r, s);
+      best = Math.max(best, this.sigReward[s]! + this.greedyValue(r, 2));
+      this.add(r, s);
+    }
+    return best;
   }
 
   isWord(word: string): boolean {

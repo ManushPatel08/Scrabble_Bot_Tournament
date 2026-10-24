@@ -112,6 +112,24 @@ test("bestPartition is optimal (vs exhaustive search) on 60 random racks of 4-9 
   }
 });
 
+test("lookahead avoids a greedy word trap without mutating the rack or leaking exclusions", () => {
+  const rack = countsOf("GIINUEMPLOAQE");
+  const original = rack.slice();
+  const greedy = idx.greedyValue(rack);
+  assert.equal(greedy, 69);
+  assert.equal(idx.lookaheadValue(rack, 3), 74);
+  assert.deepEqual(rack, original);
+  assert.equal(idx.greedyValue(rack), greedy);
+
+  const rng = new Rng(123);
+  for (let k = 0; k < 30; k++) {
+    const r = randomRack(rng, 5 + k % 10);
+    const value = idx.lookaheadValue(r, 3);
+    assert.ok(value >= idx.greedyValue(r));
+    assert.ok(value <= idx.bestPartition(r).reward);
+  }
+});
+
 test("word search is fast on large racks (< 50 ms)", () => {
   const rng = new Rng(5);
   let worst = 0;

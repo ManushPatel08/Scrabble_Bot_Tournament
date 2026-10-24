@@ -75,7 +75,7 @@ interleaved ones, where matches alternate between two parameter sets):
 | interleaved: default vs bidCapFrac 0.3, #523-551 | 5 / 5 | **40%** / 0% | **2.00** / 4.60 | dropped (about 4 SE apart) |
 | interleaved: default vs mu0 0.435, #1000-1008 | 2 / 2 | | | too short; replaced |
 | interleaved: default vs **priorByRivals 1.3 + contestFrac 1.2**, #1009-1207 | 20 / 19 | 25% / 26% | 2.95 / **2.47** (0 last places) | **shipped** 2026-10-24 03:20 (market replay 2.82 vs 2.96) |
-| LetterSharkPro: interleaved default vs contestFrac 1.4 + contestBudget 3, from 03:43 PT | | | | running (replay 2.83 vs 2.86, experiment 83) |
+| LetterSharkPro: interleaved default vs contestFrac 1.4 + contestBudget 3, #1290-1426 | 15 / 15 | 20% / 13% | **2.93** / 3.20 | dropped early (replay gain was only 0.03) |
 
 Until the contestFrac trial, the default (priorByRivals 1.0) beat every interleaved variant. Only the change that made the bot more cautious early held up live; every
 variant that bid more aggressively did worse live, even where the
@@ -129,6 +129,118 @@ trial. Experiment 83 (253 matches x 4 seeds, against the shipped config at
 coins left; endMuScale 0.5-0.7 spends down to 27 coins but places the same;
 mu0 0.45 is worse (3.00); priorByRivals 1.5, futureBias 0.5 and horizonCap
 12 are no better.
+
+## Why LetterSharkPro dipped after its start (2026-10-24 morning)
+
+LetterSharkPro placed 2.58 on average in its first 19 matches (default
+alone) and 2.92 over the next 26. Table strength didn't change (opponents'
+own mean place 3.79 vs 3.66; about 1.1 of the top-10 bots per table). The
+dip came from the contestFrac 1.4 variant (3.20 over 15 matches) and noise:
+the default arm in the same period placed 2.69-2.93, inside its ±0.35 error.
+At tables with 3+ of the top-10 bots we place 4.0 on average (4 matches).
+
+`scripts/match-diagnostics.mjs` puts our bid on every auction next to the
+winning bid, with what we bought and never played. Over 34 matches:
+
+| We placed | n | score | letters (early/mid/late) | coins left | 7+ words | table winner's letters |
+|---|--:|--:|---|--:|--:|--:|
+| 1st | 11 | 108 | 14.6 (3.9/5.3/5.5) | 24 | 2.1 | (us) |
+| 2nd-3rd | 9 | 83 | 12.7 (3.4/5.0/4.2) | 19 | 1.9 | 14.9 |
+| 4th+ | 14 | 69 | 10.1 (2.7/4.4/2.9) | 36 | 1.2 | 16.8 |
+
+Losses are matches where rivals outbid us, so we buy about 10 letters,
+make one 7-letter word instead of two, and finish with unspent money (worth
+nothing at the end). We almost never hold letters we can't use (0.4 per
+match). The winning bid averages 1.35x the price paid (archive: 18 vs 13),
+so the price signal visible during a match runs about 30% low.
+
+How the leaders bid (public winning bids since #900): postturing (best
+mean place, 2.26) bids flat, about 12 on vowels and 1-point letters, 17 on
+2-3 points and 22 on 4-5 points, and buys J/Q/X/Z mostly in the last third
+for about 16. We pay about 32 for early J/Q/X/Z and buy fewer early vowels.
+
+Market replay (285 matches x 4 seeds; shipped config 2.86), experiments
+84-88. Nothing beats the shipped config by the 0.08 bar:
+
+| Idea | Best variant | Mean place |
+|---|---|--:|
+| Faster pacing toward spending everything (paceRate 0.03-0.12) | 0.03 | 2.93 (buys fewer letters) |
+| Market money model, with lost auctions priced at 1.35-1.7x paid (marketLossMult) | 1.35 | 2.95 |
+| Cash 4-6 letter words early (cashTiming) | min length 6 | 3.26 |
+| Auto-play 6-letter words | | 3.57 |
+| Cap J/Q/X/Z bids before the last third (premiumCap 15-30) | 30 | 2.97 |
+| More Monte Carlo samples (160) | | 2.87 |
+| mu0 0.55-0.6, muTimeExp 0.6-0.8, muBalExp 0.3-0.8 | muBalExp 0.8 | 2.83 |
+
+The shipped config sits at the optimum of every money and timing knob
+against the recorded market. postturing's flat bidding works for its own
+word engine; capping our early premium bids or cashing words early costs
+ours places. The default runs alone into the tournament unless a candidate
+clears the replay bar.
+
+## Fresh Manush registration and follow-up analysis (2026-10-24)
+
+At the user's request, created **Manush / LetterSharkPro**, team 70 / bot
+76. The previous LetterSharkPro registration (bot 70 / team 64) had already
+been removed; no existing team or bot was deleted in this session. The new
+bot began playing at 05:28 PT using the shipped default. This is a fresh
+registration with the existing strategy, not a claim of a new trained model.
+
+`scripts/auction-study.mjs` read all 1,761 completed matches and 119,748
+public auction results at its snapshot. Experiment 91 lists every match
+winner, per-letter winning-bid medians by match phase, and 100 candidate
+late word-completion swings. The complete auction/word archive is saved
+locally under ignored `sim/replay/`. A purchased tile followed by a word
+is a review candidate, not proof that the purchase caused the win: initial
+rival racks and alternative word choices are unknown. For example, in
+match 1188 SookraBot won a late Q with bid 33, paid 27, subsequently played
+CLIQUEY for 63, and won by 1 point.
+
+The replay data builder now resolves both current and retired bot ids,
+excludes unfinished matches and missing rival top bids, and loads a bounded
+public snapshot in bulk. This recovered the retired LetterSharkPro history
+for 340 own completed all-human matches. Replay seeds now begin with the
+live adapter's seed convention. Error estimates average seeds within each
+match before calculating paired uncertainty: seeds are not independent
+new match observations. The optional proportional rival-score adjustment
+is a sensitivity model only, not a causal replay.
+
+All new strategy switches remain **off**. Experiments 90–96:
+
+| Hypothesis | Sample | Default vs candidate mean place | Win / score evidence | Decision |
+|---|---|---|---|---|
+| Exact word-set values in final 3/8/12 auctions | 340 matches x 2 seeds | 2.93 vs 2.93 (all) | default 22.1% wins; variants 22.1/21.9/21.6% | reject |
+| Per-letter, phase-specific historical price floor | 93 recent held-out matches x 4 seeds | 3.22 vs 3.19 best | wins unchanged at 18.0%; score 80.0 vs 80.2 | too small; reject |
+| Try 2 or 3 first words in MC word-set valuation | 93 matches x 2 seeds | 3.09 vs 3.15 / 3.21 | 2 branches: wins 19.4% vs 21.5%, score 81.1 vs 81.7, but place uncertainty includes regression | reject |
+| Future samples reflect historical own letter acquisition, crossed with letter-price floors | 93 held-out matches x 4 seeds | 3.22 vs 3.11 | wins 18.0% vs 19.6%; score 80.0 vs 80.7; paired place change -0.108 +/- 0.159 (approx 95%) | confirm before live |
+| Same acquisition/price candidate, full-set confirmation | 340 matches x 4 seeds | 2.96 vs 2.96 | wins **21.3% vs 20.4%**; score **84.0 vs 83.5** | **reject; no live A/B** |
+| Same candidate, recent-set sensitivity with 0.5 rival adjustment | 93 matches x 4 seeds | 3.21 vs 3.06 | wins 18.0% vs 21.2%; fixed opponent bids, approximate score correction | does not overturn full-set regression |
+
+Historical price priors used public all-human six-player matches #500–1200
+(701 matches); acquisition weights used 247 own matches through #1200,
+smoothed with 40 pooled-prior observations per letter. Neither used the
+held-out outcomes to construct its priors. Multiple variants were explored,
+so these are exploratory comparisons, not confirmatory significance tests.
+
+The shipped parameters are unchanged. The launcher now refuses a requested
+team/bot mismatch or failed credential mint. `scripts/restart-live.ps1`
+checks the recorded launcher PID and creation time, refuses duplicate
+starts, waits for a match boundary, stops only its process tree, clears
+overrides, and keeps credentials in memory. `SESSION.md` records live
+operations and the finite health/improvement schedules plus the 21:00 PT
+tournament handoff. There was no public tournament at startup; automatic
+registration remains enabled and must be verified when registration opens.
+
+Validation: `npm run typecheck` and all **69 tests** passed, including
+decision latency p99 <100 ms, dictionary search/partition correctness,
+experimental affordability/final-tile checks, and complete live-adapter
+matches in both auction formats. PowerShell syntax and duplicate-start
+checks passed. The actual boundary restart successfully reconnected the
+same bot 76 with no overrides; it resumed the next match from public history.
+At 05:51 PT the public stats were rating 1430, 19 matches, 3 wins and 1,654
+total points (87.1 mean). These are early default-only results, not evidence
+that one of the rejected changes improved live performance. Team 70 had
+one member, and the tournament and entry tables were still empty.
 
 ## Live opponents and the tournament phases (2026-10-23)
 

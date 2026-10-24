@@ -35,6 +35,7 @@ import type {
 } from "../game/types.ts";
 import { type Params, withParams } from "./params.ts";
 import { MatchTracker } from "./tracker.ts";
+import { HISTORICAL_WIN_PRICES, HISTORICAL_WIN_WEIGHTS } from "./market-prices.ts";
 
 let letterWeights: number[] | null = null;
 
@@ -103,6 +104,8 @@ export class Agent implements Policy {
   private idx: WordIndex;
   private rng = new Rng(1);
   private futures: Counts[] = [];
+  private valuationBag = 0;
+  private partitionValues = new Map<string, number>();
   /** Market model: our value for each auctioned letter and the price it took. */
   private market: { v: number; p: number }[] = [];
   private lastValue = -1;
@@ -147,7 +150,11 @@ export class Agent implements Policy {
       let price: number;
       if (r.winner === null) price = 1;
       else if (r.winner === this.t.seat) price = Math.max(1, r.paid);
-      else if (this.t.auctionType === "Vickrey") price = Math.max(r.paid, this.lastBid) + 1;
+      else if (this.t.auctionType === "Vickrey")
+        price =
+          this.p.marketLossMult > 1
+            ? Math.max(Math.round(r.paid * this.p.marketLossMult), this.lastBid + 1)
+            : Math.max(r.paid, this.lastBid) + 1;
       else price = r.paid + 1;
       this.market.push({ v: this.lastValue, p: price });
       this.lastValue = -1;
@@ -295,6 +302,8 @@ export class Agent implements Policy {
   private sampleFutures(): void {
     const t = this.t;
     this.evMemo.clear();
+    this.partitionValues.clear();
+    this.valuationBag = t.bagTotal;
     const k = this.futureCount();
     const pool: number[] = [];
     // Without tracking, assume future tiles follow the full starting bag.
@@ -302,13 +311,15 @@ export class Agent implements Policy {
     for (let c = 0; c < N_LETTERS; c++) for (let j = 0; j < src[c]!; j++) pool.push(c);
     const kk = Math.min(k, pool.length);
     this.futures = [];
-    if (this.p.futureBias > 0) {
+    if (this.p.futureBias > 0 || this.p.futureWinBias > 0) {
       // Weighted sampling without replacement (Efraimidis-Spirakis keys).
       const w = wordLetterWeights(this.idx);
+      const weights = w.map((weight, c) => Math.pow(weight, this.p.futureBias) *
+        Math.pow(HISTORICAL_WIN_WEIGHTS[c]!, this.p.futureWinBias));
       const keys = new Array<number>(pool.length);
       const order = pool.map((_, i) => i);
       for (let s = 0; s < this.p.samples; s++) {
-        for (let i = 0; i < pool.length; i++) keys[i] = Math.pow(this.rng.next(), 1 / Math.pow(w[pool[i]!]!, this.p.futureBias));
+        for (let i = 0; i < pool.length; i++) keys[i] = Math.pow(this.rng.next(), 1 / weights[pool[i]!]!);
         order.sort((a, b) => keys[b]! - keys[a]!);
         const f = new Array<number>(N_LETTERS).fill(0);
         for (let i = 0; i < kk; i++) f[pool[order[i]!]!]!++;
@@ -347,7 +358,23 @@ export class Agent implements Policy {
     const r = new Array<number>(N_LETTERS);
     for (const f of this.futures) {
       for (let c = 0; c < N_LETTERS; c++) r[c] = rack[c]! + f[c]!;
-      sum += this.idx.greedyValue(r, 2);
+      if (this.p.endgameExact > 0 && this.valuationBag <= this.p.endgameExact) {
+        const key = rackKey(r);
+        let value = this.partitionValues.get(key);
+        if (value === undefined) {
+          value = this.idx.bestPartition(r, 2, 20_000, 10).reward;
+          this.partitionValues.set(key, value);
+        }
+        sum += value;
+      } else if (this.p.valuationBranches > 0) {
+        const key = rackKey(r);
+        let value = this.partitionValues.get(key);
+        if (value === undefined) {
+          value = this.idx.lookaheadValue(r, this.p.valuationBranches);
+          this.partitionValues.set(key, value);
+        }
+        sum += value;
+      } else sum += this.idx.greedyValue(r, 2);
     }
     return this.futures.length ? sum / this.futures.length : this.idx.greedyValue(rack, 2);
   }
@@ -508,6 +535,7 @@ export class Agent implements Policy {
         maxBid = Math.max(cap, Math.min(maxBid, Math.floor(now / this.mu(balance))));
       }
     }
+    if (this.p.premiumCap > 0 && LETTER_VALUES[letter]! >= 8 && frac > 1 / 3) maxBid = Math.min(maxBid, this.p.premiumCap);
     if (t.auctionType === "Vickrey") {
       // A bid equal to the top sim's can't win (sims win ties, lib.rs:2142)
       // but makes that sim pay its full bid instead of the runner-up's.
@@ -520,7 +548,10 @@ export class Agent implements Policy {
         const paid = t.history.filter((h) => h.winner !== null && h.paid > 0).map((h) => h.paid).sort((a, b) => a - b);
         const median = paid.length >= 5 ? paid[paid.length >> 1]! : 12;
         const budget = Math.floor((this.p.contestBudget * balance) / Math.max(1, t.usableFutureAuctions() + 1));
-        const floor = Math.min(Math.round(this.p.contestFrac * median), budget, balance);
+        const weight = Math.max(0, Math.min(1, this.p.contestPricePrior));
+        const stage = Math.min(2, Math.floor(3 * (1 - frac)));
+        const target = (1 - weight) * this.p.contestFrac * median + weight * HISTORICAL_WIN_PRICES[stage]![letter]!;
+        const floor = Math.min(Math.round(target), budget, balance);
         if (floor > bid) bid = floor;
       }
       const taxFrac = t.activeN() <= this.p.duelMaxN && this.p.leaderTaxDuel > 0 ? this.p.leaderTaxDuel : this.p.leaderTax;

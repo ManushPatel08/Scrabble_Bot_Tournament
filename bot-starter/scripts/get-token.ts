@@ -107,9 +107,10 @@ async function mintNonce(): Promise<{ code: string; botName: string }> {
       team = Array.from(conn.db.myTeam.iter())[0] ?? fail("team created, but it isn't visible yet; run again");
       console.log(`Created team '${team.teamName}' with bot '${team.botName}'.`);
     } else {
-      if (arg("bot") && arg("bot") !== team.botName) {
-        console.log(`Note: you're already on team '${team.teamName}', whose bot is '${team.botName}'; using that.`);
-      }
+      if (arg("team") && arg("team") !== team.teamName)
+        fail(`logged-in team is '${team.teamName}', not the requested '${arg("team")}'`);
+      if (arg("bot") && arg("bot") !== team.botName)
+        fail(`logged-in bot is '${team.botName}', not the requested '${arg("bot")}'`);
       console.log(`Team '${team.teamName}', bot '${team.botName}' (id ${team.botId}).`);
     }
 

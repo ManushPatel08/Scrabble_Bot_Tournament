@@ -17,7 +17,7 @@ const arg = (n, d) => {
   const i = process.argv.indexOf(`--${n}`);
   return i === -1 ? d : process.argv[i + 1];
 };
-const logFile = arg("log", "logs/lobby.log");
+const logFiles = arg("log", "logs/lobby.log,logs/codex-live.log").split(",").filter((p) => fs.existsSync(p));
 const since = Number(arg("since", "257"));
 const out = arg("out", "sim/replay/matches.json");
 const host = process.env.STDB_HOST ?? "https://maincloud.spacetimedb.com";
@@ -25,7 +25,7 @@ const db = process.env.STDB_DB ?? "scrabblebot";
 
 // Fresh starts only ("joined at round" means a restart mid-match).
 const starts = new Map(); // matchId -> { name, rack }
-for (const line of fs.readFileSync(logFile, "utf8").split("\n")) {
+for (const line of logFiles.flatMap((file) => fs.readFileSync(file, "utf8").split("\n"))) {
   const m = line.match(/\[([^\]]+)\] match (\d+): seat \d+\/\d+, Vickrey, \d+ ms auctions, rack ([A-Z]*) \(\d+ dealt\)/);
   if (m && !line.includes("joined at round")) starts.set(Number(m[2]), { name: m[1], rack: m[3] });
 }
@@ -40,20 +40,38 @@ const some = (opt) => (opt[0] === 0 ? opt[1] : null);
 const bots = new Map((await sql("SELECT id, name, is_simulated FROM bot")).map(([id, name, sim]) => [id, { name, sim }]));
 // Our retired bots are gone from the bot table (a team is deleted with its
 // last member), so their ids are kept here.
-const RETIRED = { LetterShark: 8, LetterSharkX: 61 };
-const idOf = (name) => [...bots].find(([, b]) => b.name === name)?.[0] ?? RETIRED[name];
+const RETIRED = { LetterShark: 8, LetterSharkX: 61, LetterSharkPro: 70 };
+const ended = new Set((await sql(`SELECT id, status FROM match_state WHERE id >= ${since}`))
+  .filter(([, status]) => status[0] === 2).map(([id]) => id));
+const group = (rows) => {
+  const groups = new Map();
+  for (const [mid, ...row] of rows) {
+    if (!ended.has(mid)) continue;
+    if (!groups.has(mid)) groups.set(mid, []);
+    groups.get(mid).push(row);
+  }
+  return groups;
+};
+// One bounded snapshot of public history, rather than four network calls per match.
+const partsByMatch = group(await sql(`SELECT match_id, id, bot_id, score FROM match_participant WHERE match_id >= ${since}`));
+const resultsByMatch = group(await sql(`SELECT match_id, auction_id, letter, winner_bot_id, paid, closed_at FROM auction_result WHERE match_id >= ${since}`));
+const topsByMatch = group(await sql(`SELECT match_id, auction_id, top_bid FROM auction_top_bid_archive WHERE match_id >= ${since}`));
+const wordsByMatch = group(await sql(`SELECT match_id, id, bot_id, word, total_reward, played_at FROM word_play WHERE match_id >= ${since}`));
 
 const matches = [];
 for (const [matchId, start] of [...starts].sort((a, b) => a[0] - b[0])) {
-  if (matchId < since) continue;
-  const me = idOf(start.name);
+  if (matchId < since || !ended.has(matchId)) continue;
+  const parts = (partsByMatch.get(matchId) ?? []).sort((a, b) => a[0] - b[0]);
+  const current = [...bots].find(([, b]) => b.name === start.name)?.[0];
+  const me = [current, RETIRED[start.name]].find((id) => id !== undefined && parts.some((p) => p[1] === id));
   if (me === undefined) continue;
-  const parts = (await sql(`SELECT id, bot_id, score FROM match_participant WHERE match_id = ${matchId}`)).sort((a, b) => a[0] - b[0]);
   if (parts.length < 2 || !parts.some((p) => p[1] === me)) continue;
-  const res = (await sql(`SELECT auction_id, letter, winner_bot_id, paid, closed_at FROM auction_result WHERE match_id = ${matchId}`)).sort((a, b) => a[0] - b[0]);
+  const res = (resultsByMatch.get(matchId) ?? []).sort((a, b) => a[0] - b[0]);
   if (res.length < 30) continue;
-  const tops = new Map((await sql(`SELECT auction_id, top_bid FROM auction_top_bid_archive WHERE match_id = ${matchId}`)).map(([a, t]) => [a, t]));
-  const words = (await sql(`SELECT id, bot_id, word, total_reward, played_at FROM word_play WHERE match_id = ${matchId}`)).sort((a, b) => a[0] - b[0]);
+  const tops = new Map(topsByMatch.get(matchId) ?? []);
+  // Missing rival top bids would make a candidate look artificially strong.
+  if (res.some(([aid, , winner]) => some(winner) !== null && some(winner) !== me && !tops.has(aid))) continue;
+  const words = (wordsByMatch.get(matchId) ?? []).sort((a, b) => a[0] - b[0]);
   const seatOf = new Map(parts.map((p, i) => [p[1], i]));
   const auctions = res.map(([aid, letter, winner, paid, closed]) => {
     const w = some(winner);
