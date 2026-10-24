@@ -784,6 +784,30 @@ The live trial continues to 45 unchanged; at 30 per arm B is equal on
 place and behind on wins, so adoption of the 48-sample rollout as it
 stands is unlikely.
 
+### Live trial 4 verdict (bot 95, #3236-~3900, 14:05 PT): **rollout rejected**
+
+| Arm | Completed | Wins | Last places | Mean place | Mean score |
+|---|--:|--:|--:|--:|--:|
+| A: futureCountNoise 1 | 71 | 20 (28%) | 4 | **2.80** | **87** |
+| B: rollout, 48 samples | 71 | 6 (8%) | 0 | 2.99 | 83 |
+
+B is 0.19 places worse with a third of the wins, so it fails the 45-game
+gate and was rolled back at 14:05 PT (bot 95 now runs futureCountNoise 1
+alone). B never finished last, so it is steadier, but it almost never wins:
+the early-buying, late-stalling profile seen at 30 per arm held. The
+replay had put it 0.36-0.57 places *ahead*. This is the second candidate
+today (after the liquidity rule) where a large replay gain reversed
+live, so the replay is biased in a specific direction: it rewards buying
+early at the recorded prices, because rivals cannot react, and it does
+not charge for the letters we stop buying late. Late-static hybrid
+(experiment 127, `rolloutMinLeft` 12/20): worse than the plain rollout in
+replay (+0.08 / +0.22), not trialled.
+
+**Rule for the rest of the day: no new live trial on replay evidence
+alone for buy-timing changes; require a mechanism visible in the live
+behaviour of the top bots (public archive) and check the candidate's
+early/mid/late purchase profile in replay against theirs.**
+
 ### Experiment 123: the rollout in tournament formats — **catastrophic in duels**
 
 `sim/compare.ts`, 200 matches per cell, default vs the live B (rollout,

@@ -28,30 +28,7 @@ instruction. The originals are backed up in the Claude session scratchpad.
 A process watcher saw no Codex-spawned process at the 07:43 health slot.
 Do not reactivate them while Claude controls the bot.
 
-Current configuration: **bot 95, live trial 4 from 10:44 PT** (launcher
-PID 118320, start 2026-10-24T17:43:46.6327586Z, log
-`logs/manush4-live.log`, `trialSince` in runner-state.json). A =
-`BOT_PARAMS={"futureCountNoise":1}`; B = `BOT_PARAMS_B={"rolloutBid":1,
-"rolloutSamples":48,"rolloutHorizon":66,"rackCap":11,"cashBelow":8,
-"lateCashLen":5,"lateCashWindow":12,"finalPackWindow":3}` (the rollout
-valuation, RESULTS.md "Rollout valuation": replay 2.57 vs 2.93, holdout
-2.71 vs 3.29). Score with `node scripts/ab-live.mjs logs/manush4-live.log
---since <trialSince>`. Interim rollback rules: B >= 0.8 worse at 10 per
-arm, or >= 0.6 worse at 15, stops B early; otherwise the 25/45 gates.
-Adoption means shipping the B parameters into DEFAULT_PARAMS and
-VERSIONS.final (the user has asked for continuous upgrades; confirm the
-tournament default with them before 21:00). At the 25-game gate (11:41
-PT) B was +0.21 places with fewer wins (4 vs 7), so the trial continues
-to 45 (adopt at >= 0.25 better with noninferior wins and score).
-
-**Tournament safety (experiment 123):** the rollout loses 2-bot duels by
-about 110 points in the simulator (its prices and win share are
-six-player quantities). `rolloutMinPlayers` (default 4, committed 11:45
-PT) disables it below four active players; the running live process
-predates that commit but only plays six-player lobby games. Any adopted
-configuration must include the gate; verify `sim/experiments/125-*`
-shows the gated rollout equal to the default in duels before shipping.
-Bot 86's log
+Current configuration (14:05 PT): **bot 95, standalone `BOT_PARAMS={"futureCountNoise":1}`, no A/B** (launcher PID 123372, start 2026-10-24T21:05:43.7487571Z, log `logs/manush4-live.log`). Live trial 4 (#3236 onward, B = rollout 48 samples) ended at 71 per arm: A 2.80 / 28% wins / 87, B 2.99 / 8% / 83, so B was rolled back (RESULTS.md "Live trial 4 verdict"). The rollout code stays in the tree, off by default, with `rolloutMinPlayers` 4 so it can never run in duels. The bot reconnected on its own after a network drop at 13:59 PT. Bot 86's log
 (`logs/retired-86-live.log` = `logs/manush3-live.log`) holds three
 trials, scored only with `--since`: trial 1 #2332-2563 (B =
 futureCountNoise 1) inconclusive at 21 per arm, A 3.24 / 24% / 79 vs
