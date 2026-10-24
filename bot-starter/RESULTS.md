@@ -522,6 +522,34 @@ reachable by holding our 7s. They come from buying the extra letters
 first (14 vs 11 per match), which the liquidity candidate addresses.
 Kept off. Raw: `sim/experiments/111-hold7-screen.md`.
 
+### Experiment 112: money knobs stacked on the liquidity candidate
+
+With cash returning mid-game, do the earlier "buy more" settings behave
+differently? 340 x 2, all rows include B (cashBelow 12 + afford 1):
+
+| Added to B | Wins | Place | Score | Letters | Coins left | Paired vs default |
+|---|--:|--:|--:|--:|--:|--:|
+| nothing (B) | 25.4% | 2.76 | 86.3 | 12.3 | 24.6 | -0.17 ± 0.10 |
+| contestFrac 1.4, budget 3 | 25.0% | 2.74 | 86.8 | 12.9 | 19.7 | -0.19 ± 0.10 |
+| contestFrac 1.6, budget 3 | 25.1% | 2.73 | 86.9 | 12.9 | 18.7 | -0.19 ± 0.10 |
+| endMuScale 0.5 | 24.4% | 2.78 | 86.2 | 12.7 | 17.5 | -0.15 ± 0.10 |
+| mu0 0.45 | 24.3% | 2.83 | 86.0 | 12.3 | 23.3 | -0.10 ± 0.11 |
+| priorByRivals 1.1 | 22.1% | 2.85 | 85.7 | 12.3 | 24.2 | -0.08 ± 0.11 |
+| cashBelow 16 instead of 12 | 23.5% | 2.84 | 85.1 | 12.3 | 23.3 | -0.09 ± 0.10 |
+
+The contest floor adds about 0.02-0.03 places on top of B, inside the
+noise, and contestFrac 1.4 + budget 3 lost its own live trial earlier
+(2.93 vs 3.20 over 15 per arm). Cheaper money and a lower prior still
+hurt even with B. Holdout (92 x 8): default 3.31, B 3.09 (-0.22 ± 0.11),
+B + contest 1.4/3 3.02 (-0.29 ± 0.11), B + contest 1.6/3 3.01 (-0.29 ±
+0.11), with wins 23.5% vs 22.0% and 0.7 more letters. The increment over
+B is consistent across both datasets (about 0.07) but inside the noise of
+each. The earlier live loss of contestFrac 1.4 happened without liquidity;
+running dry is exactly what B fixes, so the old result may not transfer.
+**B2 = B + contestFrac 1.6 + contestBudget 3** is the next trial candidate,
+to be tested against B (not against the default) after trial 2 settles.
+B stays as the live arm for now.
+
 ## Live opponents and the tournament phases (2026-10-23)
 
 **The strongest live opponent.** "bot" (id 7) beat LetterShark in 3 of
