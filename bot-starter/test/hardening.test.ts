@@ -292,3 +292,41 @@ test("rolloutMinPlayers: the rollout is used only at tables with enough active p
   assert.notEqual(bidAt(6, R), bidAt(6, { ...R, rolloutBid: 0 })); // six players: the rollout decides
   assert.notEqual(bidAt(2, { ...R, rolloutMinPlayers: 2 }), bidAt(2, { ...R, rolloutBid: 0 })); // gate lowered: rollout in duels too
 });
+
+test("cash threshold holds a cheap 7 while rich and cashes it as money runs out; late all-in stays affordable", () => {
+  const words = (params: Record<string, number>, balance: number, bagTotal = 40) => {
+    const a = new Agent({ ...FINAL, ...params, samples: 8 }, "thresh");
+    start(a, 6, [null, null, null, null, null, null], "Vickrey");
+    return a.onAuction({ ...view(6, "Q"), rack: countsOf("RETAINS"), bagTotal, balances: [balance, 100, 100, 100, 100, 100] }).words;
+  };
+  const T = { cashThreshA: 28, cashThreshB: 0.63 };
+  assert.equal(words({}, 100).length, 1); // shipped: play the 7 at once
+  assert.deepEqual(words(T, 100), []); // a ~27-point 7 < 28 + 63: hold while rich
+  assert.equal(words({ ...T, cashThreshA: 1, cashThreshB: 0 }, 100).length, 1); // a low bar plays it
+  assert.equal(words(T, 100, 2).length, 1); // too late to hold
+  const bid = (params: Record<string, number>, letter: string, bagTotal: number, balance: number) => {
+    const a = new Agent({ ...FINAL, ...params, samples: 8 }, "allin");
+    start(a, 6, [null, null, null, null, null, null], "Vickrey");
+    return a.onAuction({ ...view(6, letter), rack: countsOf("RETAI"), bagTotal, balances: [balance, 100, 100, 100, 100, 100] }).bid;
+  };
+  assert.equal(bid({ lateAllIn: 6 }, "N", 3, 37), 37); // RETAIN is a word: worth everything late
+  assert.equal(bid({ lateAllIn: 6 }, "N", 0, 37), 0); // never on the final auction
+  assert.ok(bid({ lateAllIn: 6 }, "N", 30, 37) < 37); // not before the window
+});
+
+test("Dante opening: consonant floors early, cheap-letter cap, completion floor; all affordable", () => {
+  const bid = (params: Record<string, number>, letter: string, rack: string, bagTotal: number, balance = 100) => {
+    const a = new Agent({ ...FINAL, ...params, samples: 8 }, "dante");
+    start(a, 6, [null, null, null, null, null, null], "Vickrey");
+    return a.onAuction({ ...view(6, letter), rack: countsOf(rack), bagTotal, balances: [balance, 100, 100, 100, 100, 100] }).bid;
+  };
+  const D = { consonantFloor3: 20, consonantFloor4: 25 };
+  assert.ok(bid(D, "H", "AEIOU", 60) >= 25); // early strong consonant
+  assert.ok(bid(D, "B", "AEIOU", 60) >= 20);
+  assert.ok(bid(D, "H", "AEIOUH", 60) >= 21 && bid(D, "H", "AEIOUH", 60) <= Math.max(21, bid({}, "H", "AEIOUH", 60))); // duplicate: floor 25 - 4
+  assert.equal(bid(D, "H", "AEIOU", 20), bid({}, "H", "AEIOU", 20)); // not after the opening
+  assert.ok(bid(D, "H", "AEIOU", 60, 12) <= 12); // never above balance
+  assert.ok(bid({ completionFloor: 20 }, "S", "RETAIN", 40) >= 20); // completes RETAINS
+  assert.ok(bid({ cheapCap: 12 }, "E", "QZXJV", 40) <= 12);
+  assert.equal(bid({ ...D, completionFloor: 20, cheapCap: 12 }, "H", "AEIOU", 0), 0); // final auction
+});

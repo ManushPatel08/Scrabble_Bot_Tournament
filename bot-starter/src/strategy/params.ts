@@ -253,6 +253,48 @@ export interface Params {
    * times a match, because one late letter rarely changes its playouts.
    */
   rolloutMinLeft: number;
+  /**
+   * Balance-dependent cash threshold (Nijello, public archive #2000-4287):
+   * a 7+ letter word is auto-played only when its reward is at least
+   * cashThreshA + cashThreshB x balance (0 = off, play at once). Below the
+   * bar the word is held and the bot keeps buying; 89% of Nijello's 8+
+   * letter words grew out of a held 7. The bar falls as money runs out.
+   */
+  /**
+   * Chinese Dante's opening (public archive #2300-4287): in the first
+   * consonantPhase of the match, bid at least consonantFloor3 on B/C/M/P
+   * and consonantFloor4 on F/H/V/W/Y/K (minus consonantDup per copy of
+   * the same letter already held) whether or not they fit; 0 = off. It wins
+   * 44% of those auctions early vs our 20%, and its 7s are worth 43.6 vs
+   * our 39.6 points, all from face value.
+   */
+  consonantFloor3: number;
+  consonantFloor4: number;
+  consonantDup: number;
+  consonantPhase: number;
+  /** Before the last third, cap bids on 1-point letters at this unless they complete a 7+ word (0 = off). */
+  cheapCap: number;
+  /**
+   * Completion floor (Chinese Dante): when the letter completes a 7+ word
+   * worth V, bid at least completionFloor + completionSlope x max(0, V - 40)
+   * (+ completionLate in the last third), within balance; 0 = off. It turns
+   * 40% of mid-game completion chances into words; we turn 19%.
+   */
+  completionFloor: number;
+  completionSlope: number;
+  completionLate: number;
+  cashThreshA: number;
+  cashThreshB: number;
+  /** Always cash when this few usable auctions remain (the hold has no future). */
+  cashThreshMinLeft: number;
+  /**
+   * Late all-in (Nijello: 70% of its winning bids in the last 5-6 auctions
+   * are its whole balance): within this many usable auctions of the end,
+   * bid the whole balance on any letter that improves the rack's word set
+   * now or has positive value (0 = off). Coins are worth nothing once the
+   * match ends.
+   */
+  lateAllIn: number;
   /** Hold a 7-letter word while at least this many unseen tiles would extend it to 8+ (0 = off). */
   hold7Ext: number;
   /** hold7Ext applies only with at least this many usable auctions left. */
@@ -367,6 +409,18 @@ export const DEFAULT_PARAMS: Params = {
   rolloutPriceAdapt: 0,
   rolloutMinPlayers: 4,
   rolloutMinLeft: 0,
+  consonantFloor3: 0,
+  consonantFloor4: 0,
+  consonantDup: 4,
+  consonantPhase: 0.34,
+  cheapCap: 0,
+  completionFloor: 0,
+  completionSlope: 1,
+  completionLate: 10,
+  cashThreshA: 0,
+  cashThreshB: 0,
+  cashThreshMinLeft: 4,
+  lateAllIn: 0,
   hold7Ext: 0,
   hold7MinLeft: 6,
   taxShade: 1,

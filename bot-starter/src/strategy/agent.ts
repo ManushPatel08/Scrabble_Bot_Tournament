@@ -629,6 +629,8 @@ export class Agent implements Policy {
       // (with the rest of the rack) into an 8+ letter word, there is time for
       // one to arrive, and we are not short of money. The public leaders'
       // extra points over us are almost entirely 8+ letter words.
+      if (this.p.cashThreshA > 0 && t.usableFutureAuctions() >= this.p.cashThreshMinLeft &&
+          this.idx.sigReward[s]! < this.p.cashThreshA + this.p.cashThreshB * balances[me]!) break;
       if (this.p.hold7Ext > 0 && this.idx.sigLen[s] === 7 && t.usableFutureAuctions() >= this.p.hold7MinLeft &&
           balances[me]! >= this.p.cashBelow && this.extendingTiles(rack) >= this.p.hold7Ext) break;
       if (this.p.wordLookahead > 0) {
@@ -819,6 +821,31 @@ export class Agent implements Policy {
         }
       }
       if (this.p.taxShade < 1 && this.taxed()) bid = Math.floor(bid * this.p.taxShade);
+      if (!t.isFinalAuction() && (this.p.consonantFloor3 > 0 || this.p.cheapCap > 0 || this.p.completionFloor > 0)) {
+        const face = LETTER_VALUES[letter]!;
+        rack[letter]!++;
+        const sig7 = this.idx.bestRewardSig(rack, 7);
+        rack[letter]!--;
+        const completes = sig7 !== -1;
+        if (this.p.cheapCap > 0 && face === 1 && !completes && frac > 1 / 3) bid = Math.min(bid, this.p.cheapCap);
+        if (this.p.consonantFloor3 > 0 && frac > 1 - this.p.consonantPhase && (face === 3 || face === 4 || face === 5)) {
+          const base = face === 3 ? this.p.consonantFloor3 : this.p.consonantFloor4;
+          const floor = Math.round(base - this.p.consonantDup * rack[letter]!);
+          if (floor > bid) bid = Math.min(floor, balance);
+        }
+        if (this.p.completionFloor > 0 && completes) {
+          const v = this.idx.sigReward[sig7]!;
+          const floor = Math.round(this.p.completionFloor + this.p.completionSlope * Math.max(0, v - 40) + (frac < 1 / 3 ? this.p.completionLate : 0));
+          if (floor > bid) bid = Math.min(floor, balance);
+        }
+      }
+      if (this.p.lateAllIn > 0 && !t.isFinalAuction() && t.usableFutureAuctions() < this.p.lateAllIn) {
+        const before = this.idx.greedyValue(rack, 2);
+        rack[letter]!++;
+        const gain = this.idx.greedyValue(rack, 2) - before;
+        rack[letter]!--;
+        if (gain > 0 || value > 0) bid = balance;
+      }
       // Common letters return few points per coin (public archive: about
       // 0.23 for 1-point letters vs 0.6-1.0 for J/Q/X/Z); shade them while
       // coins still have a future.
