@@ -103,6 +103,8 @@ test("experimental valuation and market floors stay affordable and skip the fina
       { winHistoryWindow: 12 }, { immediateValueWeight: .5 },
       { futureCountNoise: 1 },
       { futureCountNoise: 1, protectedCashBelow: 20 },
+      { rolloutBid: 1, rolloutSamples: 8, rolloutHorizon: 66, rackCap: 11, cashBelow: 8, lateCashLen: 5, lateCashWindow: 12, finalPackWindow: 3 },
+      { rolloutBid: 1, rolloutSamples: 8, rolloutPriceAdapt: 1, shadeLow: 0.8 },
     ]) {
       const a = new Agent({ ...FINAL, ...params, samples: 8 }, "experiment");
       start(a, 6, [null, null, null, null, null, null], auctionType);
