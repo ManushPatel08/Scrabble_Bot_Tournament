@@ -6,6 +6,8 @@ on branch `scrabblebot-bot`, merged with upstream's tournament version
 
 ## Status: live as LetterShark, waiting for the tournament
 
+**Right now (2026-10-23, 19:20 PT):** LetterShark runs in tournament mode in its own PowerShell window (`-NoLobby`, log `logs	ournament.log`). It stays connected and registers itself when the organizers open the tournament. Lobby record before switching: 23 wins in 30 matches, never last. The code is pushed to the private repo ManushPatel08/Cal_Hacks_Scrabble_Bot_Tournament (`main`); make it public after the final.
+
 - **Event:** ScrabbleBot tournament, Cal Hacks 13.0, **12:00 AM Sunday**
   (Saturday night), live: Swiss rounds, a cut, elimination, then a
   best-of-3 final. Prizes: $1,024 / $512 / $256. **Public source code on
@@ -15,7 +17,7 @@ on branch `scrabblebot-bot`, merged with upstream's tournament version
   official site is https://scrabblebot.spacetimedb.com.
 - **Our bot:** team **Team Manush**, bot **LetterShark** (id 8), created
   2026-10-23 with `npm run get-token`. It won its first 10 lobby matches
-  (RESULTS.md → Live lobby record).
+  (RESULTS.md → Live lobby record). Final config: 96 Monte Carlo samples.
 - **Live fixes on 2026-10-23:** late bids (sliced precompute) and frozen
   opponent scores (per-match participant subscriptions). Both were
   verified live.
