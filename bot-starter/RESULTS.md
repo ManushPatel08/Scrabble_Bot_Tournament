@@ -51,6 +51,33 @@ What the first live matches found, and the fixes:
    0s. Each match's participants now have their own subscription; the
    end-of-match summaries show real opponent scores again.
 
+## Live trials against the human field (2026-10-23/24)
+
+By late evening the lobby was all human bots (30+ registered; winning scores
+rose from about 90 to 120-150 within hours as teams updated their bots).
+Public data () showed LetterShark at all-human
+tables assuming a 35% share of future auctions while winning about 15%,
+overvaluing speculative letters early and running dry. Trials, in order
+( for before/after,  for the
+interleaved ones, where matches alternate between two parameter sets):
+
+| Trial | Matches | Wins | Mean place | Verdict |
+|---|---:|---:|---:|---|
+| baseline (prior 0.35), #257-277 | 18 | 22% | 3.28 | |
+| **priorByRivals 1.0**, #278-310 | 16 | **50%** | **2.25** | **shipped** |
+| + lateReserve 30 + endMuScale 0.5 | 8 | 25% | 2.50 | dropped |
+| + bidCapFrac 0.3 | 11 | 27% | | dropped |
+| interleaved: default vs mu0 0.4 | 11 / 9 | 27% / 33% | 3.27 / 3.00 | inconclusive |
+| interleaved: default vs mu0 0.4 + marketCap 2 | 9 / 8 | 33% / 25% | 2.67 / 2.75 | even, dropped |
+| interleaved: default vs contestFrac 0.8 + marketCap 2 | 7 / 6 | 14% / 17% | 2.86 / 3.50 | dropped (sims favoured it: 40.0% vs 35.8% at 400 matches) |
+
+Only the change that made the bot more cautious early held up live; every
+variant that bid more aggressively did worse live, even where the
+simulator preferred it. The simulator's opponents bid less than the live
+field, so they reward aggression that real rivals punish. The website
+leaderboard rates lobby games only; the tournament's Swiss round 1 is
+seeded randomly (tournament.ts), so lobby rating does not carry over.
+
 ## Live opponents and the tournament phases (2026-10-23)
 
 **The strongest live opponent.** "bot" (id 7) beat LetterShark in 3 of
