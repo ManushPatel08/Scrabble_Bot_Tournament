@@ -516,6 +516,13 @@ export class Agent implements Policy {
         if (maxBid < sims && sims <= balance) return sims;
       }
       let bid = maxBid;
+      if (this.p.contestFrac > 0 && value > 0 && !t.isFinalAuction()) {
+        const paid = t.history.filter((h) => h.winner !== null && h.paid > 0).map((h) => h.paid).sort((a, b) => a - b);
+        const median = paid.length >= 5 ? paid[paid.length >> 1]! : 12;
+        const budget = Math.floor((2 * balance) / Math.max(1, t.usableFutureAuctions() + 1));
+        const floor = Math.min(Math.round(this.p.contestFrac * median), budget, balance);
+        if (floor > bid) bid = floor;
+      }
       const taxFrac = t.activeN() <= this.p.duelMaxN && this.p.leaderTaxDuel > 0 ? this.p.leaderTaxDuel : this.p.leaderTax;
       if (taxFrac > 0 && !t.isFinalAuction() && t.bagTotal >= 3) {
         let leader = -1;

@@ -61,6 +61,16 @@ export interface Params {
    * letters that need many others (live: 37 for a round-2 K, 48 for a Z).
    */
   marketCap: number;
+  /**
+   * 0 = off. Vickrey: for any letter worth something to us, bid at least
+   * this fraction of the match's median winning price (12 until 5 prices are
+   * known), within the per-auction budget (2x balance / usable auctions
+   * left). We pay the runner-up's bid, so uncontested letters come cheap.
+   * Live 2026-10-24: LetterShark won 10-11 letters a match while the leaders
+   * won 13-18, mostly at 11-13 each; 53% of our mid-game losses were by
+   * 5 coins or less.
+   */
+  contestFrac: number;
   /** Cap on future letters per sample (keeps evaluation cheap). */
   horizonCap: number;
   /**
@@ -172,6 +182,7 @@ export const DEFAULT_PARAMS: Params = {
   lateReserve: 0,
   endMuScale: 0,
   marketCap: 0,
+  contestFrac: 0,
   horizonCap: 20,
   futureBias: 0,
   trackBag: 1,
