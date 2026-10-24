@@ -17,6 +17,7 @@ const COMMON: Params = {
   bidCapFrac: 0,
   lateReserve: 0,
   endMuScale: 0,
+  marketCap: 0,
   horizonCap: 20,
   futureBias: 0,
   trackBag: 1,

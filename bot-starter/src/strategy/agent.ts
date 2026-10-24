@@ -486,8 +486,13 @@ export class Agent implements Policy {
     const reservation = value / this.mu(balance); // currency we'd pay at most
     let maxBid = value > 0 ? Math.min(balance, Math.floor(reservation)) : 0;
     const frac = (t.bagTotal + 1) / t.totalAuctions();
-    if (maxBid > 0 && frac > 1 / 3 && (this.p.bidCapFrac > 0 || this.p.lateReserve > 0)) {
+    if (maxBid > 0 && frac > 1 / 3 && (this.p.bidCapFrac > 0 || this.p.lateReserve > 0 || this.p.marketCap > 0)) {
       let cap = maxBid;
+      if (this.p.marketCap > 0) {
+        const paid = t.history.filter((h) => h.winner !== null && h.paid > 0).map((h) => h.paid).sort((a, b) => a - b);
+        const median = paid.length >= 5 ? paid[paid.length >> 1]! : 12;
+        cap = Math.min(cap, Math.ceil(this.p.marketCap * median));
+      }
       if (this.p.bidCapFrac > 0) cap = Math.min(cap, Math.floor(this.p.bidCapFrac * balance));
       if (this.p.lateReserve > 0) {
         const reserve = this.p.lateReserve * Math.min(1, (frac - 1 / 3) * 1.5);

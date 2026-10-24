@@ -53,6 +53,14 @@ export interface Params {
    * with 36 coins on average while the best bots bid ~20 in the last third.
    */
   endMuScale: number;
+  /**
+   * 0 = off. Before the last third, cap a bid at this multiple of the
+   * match's median winning price (12 until 5 prices are known), unless the
+   * letter is worth more right now (words playable with it today). The
+   * Monte Carlo value treats future letters as free, which flatters rare
+   * letters that need many others (live: 37 for a round-2 K, 48 for a Z).
+   */
+  marketCap: number;
   /** Cap on future letters per sample (keeps evaluation cheap). */
   horizonCap: number;
   /**
@@ -163,6 +171,7 @@ export const DEFAULT_PARAMS: Params = {
   bidCapFrac: 0,
   lateReserve: 0,
   endMuScale: 0,
+  marketCap: 0,
   horizonCap: 20,
   futureBias: 0,
   trackBag: 1,
