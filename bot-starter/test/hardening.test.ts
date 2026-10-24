@@ -5,15 +5,83 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Agent } from "../src/strategy/agent.ts";
+import { WordIndex, sharedIndex } from "../src/game/dictionary.ts";
 import { VERSIONS } from "../src/strategy/versions.ts";
 import { countsOf, letterIndex, wordReward } from "../src/game/letters.ts";
 import type { AuctionView, MatchStart } from "../src/game/types.ts";
 
 const FINAL = VERSIONS.final!;
 
+test("word choice lookahead preserves a better scoring remainder", () => {
+  const idx = sharedIndex();
+  const outcome = (wordLookahead: number) => {
+    const a = new Agent({ ...FINAL, wordLookahead }, "word-choice");
+    start(a, 6, [null, null, null, null, null, null], "Vickrey");
+    const rack = countsOf("GIINUEMPLOAQE");
+    const d = a.onAuction({ ...view(6, "X"), rack, round: 67, bagTotal: 1, balances: [100, 100, 100, 100, 100, 100] });
+    const remaining = rack.slice();
+    for (const word of d.words) for (const ch of word) remaining[ch.charCodeAt(0) - 65]!--;
+    return { words: d.words, value: d.words.reduce((s, w) => s + wordReward(w), 0) + idx.bestPartition(remaining).reward };
+  };
+  assert.deepEqual(outcome(0), { words: ["EQUIPAGE"], value: 69 });
+  assert.deepEqual(outcome(1), { words: ["OPAQUING"], value: 74 });
+});
+
+test("completion credit targets cashable long words and expires before the last usable tile", () => {
+  const bid = (completionCredit: number, letter: string, bagTotal: number, balance = 100) => {
+    const a = new Agent({ ...FINAL, completionCredit, mcValuation: 0, faceMult: 1, faceAdd: 0, contestFrac: 0 }, "completion");
+    start(a, 6, [null, null, null, null, null, null], "Vickrey");
+    return a.onAuction({ ...view(6, letter), rack: countsOf("RETAIN"), round: 68 - bagTotal,
+      bagTotal, balances: [balance, 100, 100, 100, 100, 100] }).bid;
+  };
+  assert.ok(bid(.25, "S", 40) > bid(0, "S", 40));
+  assert.equal(bid(.25, "Q", 40), bid(0, "Q", 40));
+  assert.equal(bid(.25, "S", 1), bid(0, "S", 1));
+  assert.equal(bid(.25, "S", 0), 0);
+  assert.ok(bid(10, "S", 40, 7) <= 7);
+});
+
+test("recent win-share estimates react to a market shift without losing prior smoothing", () => {
+  const recent = new Agent({ ...FINAL, winHistoryWindow: 12 }, "recent");
+  const whole = new Agent(FINAL, "whole");
+  for (const a of [recent, whole]) {
+    start(a, 6, [null, null, null, null, null, null], "Vickrey");
+    for (let round = 1; round <= 36; round++) a.onAuctionResult({ round, letter: "A", winner: round <= 24 ? 1 : 0, paid: 10 });
+  }
+  assert.ok(recent.winShare() > whole.winShare());
+  assert.ok(recent.winShare() < 1 && recent.winShare() > 0);
+});
+
+test("immediate valuation targets playable points even when futures are precomputed", () => {
+  const idx = new WordIndex(["RETAIN", "RETAINS", "QUARTER"]);
+  const a = new Agent({ ...FINAL, immediateValueWeight: 1, contestFrac: 0, samples: 8 }, "immediate", idx);
+  start(a, 6, [null, null, null, null, null, null], "Vickrey");
+  const rack = countsOf("RETAIN");
+  const d = a.onAuction({ ...view(6, "S"), rack });
+  assert.ok(d.bid > 0);
+  a.onAuctionResult({ round: 10, letter: "S", winner: 1, paid: 12 });
+  a.prepareNext();
+  const next = a.onAuction({ ...view(6, "Q"), rack, round: 11, bagTotal: 39 });
+  assert.equal(next.bid, 0); // In this dictionary, Q needs a future U to score.
+  assert.deepEqual(rack, countsOf("RETAIN"));
+});
+
+test("uncertain acquisition counts remain reproducible for a fixed match seed", () => {
+  const agents = ["one", "two"].map((name) => new Agent({ ...FINAL, futureCountNoise: 1, samples: 16 }, name));
+  for (const a of agents) start(a, 6, [null, null, null, null, null, null], "Vickrey");
+  assert.deepEqual(agents[0]!.onAuction(view(6, "S")), agents[1]!.onAuction(view(6, "S")));
+});
+
 test("experimental valuation and market floors stay affordable and skip the final tile", () => {
   for (const auctionType of ["Vickrey", "FirstPrice"] as const) {
-    for (const params of [{ endgameExact: 8 }, { valuationBranches: 3 }, { contestPricePrior: 1, contestBudget: 3 }, { futureWinBias: 1, contestPricePrior: 1, contestBudget: 3 }]) {
+    for (const params of [
+      { endgameExact: 8 }, { valuationBranches: 3 },
+      { contestPricePrior: 1, contestBudget: 3 },
+      { futureWinBias: 1, contestPricePrior: 1, contestBudget: 3 },
+      { wordLookahead: 1 }, { completionCredit: .25 },
+      { winHistoryWindow: 12 }, { immediateValueWeight: .5 },
+      { futureCountNoise: 1 },
+    ]) {
       const a = new Agent({ ...FINAL, ...params, samples: 8 }, "experiment");
       start(a, 6, [null, null, null, null, null, null], auctionType);
       for (const bagTotal of [40, 8, 3, 1, 0]) {

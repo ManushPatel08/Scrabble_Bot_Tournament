@@ -273,7 +273,10 @@ export class Agent implements Policy {
       for (let j = 0; j < t.n; j++) if (j !== t.seat && !t.inactive(j) && !t.sims[j]) rivals++;
       prior = Math.min(0.9, this.p.priorByRivals / (1 + rivals));
     }
-    const hist = (t.wins[t.seat]! + prior * this.p.winPriorWeight) / (done + this.p.winPriorWeight);
+    const recent = this.p.winHistoryWindow > 0 ? t.history.slice(-Math.max(1, Math.floor(this.p.winHistoryWindow))) : null;
+    const wins = recent ? recent.filter((h) => h.winner === t.seat).length : t.wins[t.seat]!;
+    const observations = recent ? recent.length : done;
+    const hist = (wins + prior * this.p.winPriorWeight) / (observations + this.p.winPriorWeight);
     const w = this.p.moneyShareWeight;
     const bal = this.lastBalances;
     if (!w || !bal) return hist;
@@ -310,6 +313,14 @@ export class Agent implements Policy {
     const src = this.p.trackBag === 0 ? BAG_DISTRIBUTION : t.unseen;
     for (let c = 0; c < N_LETTERS; c++) for (let j = 0; j < src[c]!; j++) pool.push(c);
     const kk = Math.min(k, pool.length);
+    const noise = Math.max(0, Math.min(1, this.p.futureCountNoise));
+    const share = this.winShare();
+    const auctions = t.usableFutureAuctions();
+    const sampleSize = () => {
+      let wins = 0;
+      for (let i = 0; i < auctions; i++) if (this.rng.next() < share) wins++;
+      return Math.max(0, Math.min(this.p.horizonCap, pool.length, Math.round((1 - noise) * k + noise * wins)));
+    };
     this.futures = [];
     if (this.p.futureBias > 0 || this.p.futureWinBias > 0) {
       // Weighted sampling without replacement (Efraimidis-Spirakis keys).
@@ -319,17 +330,19 @@ export class Agent implements Policy {
       const keys = new Array<number>(pool.length);
       const order = pool.map((_, i) => i);
       for (let s = 0; s < this.p.samples; s++) {
+        const size = noise > 0 ? sampleSize() : kk;
         for (let i = 0; i < pool.length; i++) keys[i] = Math.pow(this.rng.next(), 1 / weights[pool[i]!]!);
         order.sort((a, b) => keys[b]! - keys[a]!);
         const f = new Array<number>(N_LETTERS).fill(0);
-        for (let i = 0; i < kk; i++) f[pool[order[i]!]!]!++;
+        for (let i = 0; i < size; i++) f[pool[order[i]!]!]!++;
         this.futures.push(f);
       }
       return;
     }
     for (let s = 0; s < this.p.samples; s++) {
       const f = new Array<number>(N_LETTERS).fill(0);
-      for (let i = 0; i < kk; i++) {
+      const size = noise > 0 ? sampleSize() : kk;
+      for (let i = 0; i < size; i++) {
         const j = i + this.rng.int(pool.length - i);
         const tmp = pool[i]!;
         pool[i] = pool[j]!;
@@ -383,12 +396,22 @@ export class Agent implements Policy {
   letterValue(letter: number, rack: Counts): number {
     if (this.t.isFinalAuction()) return 0; // can never be played (lib.rs:2231-2244)
     if (!this.p.mcValuation) return this.p.faceMult * LETTER_VALUES[letter]! + this.p.faceAdd;
-    if (this.valueCache && this.valueCache.key === rackKey(rack)) return this.valueCache.values[letter]!;
-    const base = this.expectedValue(rack);
+    let future: number;
+    if (this.valueCache && this.valueCache.key === rackKey(rack)) future = this.valueCache.values[letter]!;
+    else {
+      const base = this.expectedValue(rack);
+      rack[letter]!++;
+      const withL = this.expectedValue(rack);
+      rack[letter]!--;
+      future = Math.max(0, withL - base);
+    }
+    const weight = Math.max(0, Math.min(1, this.p.immediateValueWeight));
+    if (weight === 0) return future;
+    const before = this.idx.greedyValue(rack, 2);
     rack[letter]!++;
-    const withL = this.expectedValue(rack);
+    const now = Math.max(0, this.idx.greedyValue(rack, 2) - before);
     rack[letter]!--;
-    return Math.max(0, withL - base);
+    return (1 - weight) * future + weight * now;
   }
 
   // ------------------------------------------------------------------ money
@@ -466,8 +489,20 @@ export class Agent implements Policy {
 
     // Long words take the top multiplier already: play them.
     for (;;) {
-      const s = this.idx.bestRewardSig(rack, this.p.autoPlayLen);
+      let s = this.idx.bestRewardSig(rack, this.p.autoPlayLen);
       if (s === -1) break;
+      if (this.p.wordLookahead > 0) {
+        const choices = this.idx.playable(rack, this.p.autoPlayLen)
+          .sort((a, b) => this.idx.sigReward[b]! - this.idx.sigReward[a]!).slice(0, 8);
+        const cashWeight = 1 + this.mu(balances[me]!);
+        let best = -Infinity;
+        for (const candidate of choices) {
+          this.idx.subtract(rack, candidate);
+          const value = cashWeight * this.idx.sigReward[candidate]! + this.p.wordLookahead * this.expectedValue(rack);
+          this.idx.add(rack, candidate);
+          if (value > best) { best = value; s = candidate; }
+        }
+      }
       play(s);
     }
 
@@ -510,7 +545,14 @@ export class Agent implements Policy {
     const own = this.letterValue(letter, rack);
     this.lastValue = own;
     const value = own + this.denialValue(letter, scores);
-    const reservation = value / this.mu(balance); // currency we'd pay at most
+    let credit = 0;
+    if (this.p.completionCredit > 0 && t.bagTotal > 1 && own > 0) {
+      rack[letter]!++;
+      const ready = this.idx.bestRewardSig(rack, this.p.autoPlayLen);
+      rack[letter]!--;
+      if (ready !== -1) credit = this.p.completionCredit * this.idx.sigReward[ready]!;
+    }
+    const reservation = value / this.mu(balance) + credit; // currency we'd pay at most
     let maxBid = value > 0 ? Math.min(balance, Math.floor(reservation)) : 0;
     const frac = (t.bagTotal + 1) / t.totalAuctions();
     if (maxBid > 0 && frac > 1 / 3 && (this.p.bidCapFrac > 0 || this.p.lateReserve > 0 || this.p.marketCap > 0)) {

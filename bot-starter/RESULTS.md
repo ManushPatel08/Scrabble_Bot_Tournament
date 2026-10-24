@@ -242,6 +242,65 @@ total points (87.1 mean). These are early default-only results, not evidence
 that one of the rejected changes improved live performance. Team 70 had
 one member, and the tournament and entry tables were still empty.
 
+## Further strategy experiments and the uncertainty candidate (2026-10-24)
+
+Five additional mechanisms were implemented as off-by-default switches and
+tested on the same 340 archived live matches. Experiment 97–101 screening
+used two seeds per match; the control was 22.1% wins, mean place 2.93,
+mean score 84.5. Multiple variants were explored, so confirmation matters.
+
+| Mechanism | Best observed setting | Mean place | Wins | Mean score | Decision |
+|---|---|---:|---:|---:|---|
+| Choose long words using immediate cash plus remaining-rack future value | wordLookahead 1 | 2.92 | 21.9% | 84.4 | negligible; off |
+| Extra bid reservation for a tile completing an immediately cashable long word | completionCredit 0.1 | 2.93 | 22.8% | 84.2 | score fell; larger credits clearly worse; off |
+| Estimate future win share from a recent auction window | winHistoryWindow 36 | 2.93 | 22.4% | 84.1 | score fell; windows 12/24 worse; off |
+| Blend future marginal values with points spellable now | immediateValueWeight 0.25 | 3.15 | 19.4% | 81.3 | worse; larger weights substantially worse; off |
+| Sample the number of future acquisitions, rather than fix every sample to its rounded expectation | futureCountNoise 1 | 2.87 | 22.4% | 85.3 | confirm |
+
+The last model samples usable future auction wins from a binomial
+distribution with the agent's current estimated win share. Each MC sample
+then draws that many tiles from the tracked unseen pool, capped by the
+existing horizon. This captures uncertainty in acquisition count, rather
+than only uncertainty about which letters are acquired. The fixed-count
+model remains the shipped default; only the experimental B arm uses the
+new model. Half-strength uncertainty (0.5) was worse in the screen.
+
+Confirmation, experiment 103, **340 matches x 4 seeds**:
+
+| Policy | Win rate | Mean place | Mean score | Tiles bought | Coins left |
+|---|---:|---:|---:|---:|---:|
+| default | 21.3% | 2.96 | 84.0 | 11.5 | 31.0 |
+| futureCountNoise 1 | **23.0%** | **2.86** | **85.4** | 11.9 | 29.5 |
+
+Paired place change: **-0.099 +/- 0.076** (approximate 95% interval,
+clustered by match). A separate check used **31 fresh matches #1741–1899 x
+8 seeds**, collected before testing this candidate (experiment 104):
+
+| Policy | Win rate | Mean place | Mean score | Tiles bought | Coins left |
+|---|---:|---:|---:|---:|---:|
+| default | 15.7% | 3.05 | 82.7 | 10.5 | 33.9 |
+| futureCountNoise 1 | **19.8%** | **2.85** | **85.6** | 11.2 | 30.6 |
+
+Paired place change: **-0.198 +/- 0.148** (same clustering). These are
+replay estimates, not measured live gains. Rival bids and scores stay
+fixed, and the 8 seeds are not 8 independent sets of opponents.
+
+Typecheck and 15 targeted strategy/tracker tests passed, covering budget
+bounds, final-tile behavior, word selection, current-value cache behavior,
+reproducible random counts, and bag conservation. Candidate latency with
+live precompute enabled (experiment 105, 6 matches / 408 decisions / max
+observed rack 13): bid p99 **21.44 ms**, max **24.0 ms**, word p99
+**0.02 ms**. Precompute remains sliced in the live adapter. The latency
+CLI now accepts parameter overrides to check experimental settings.
+
+The same Manush / LetterSharkPro bot 76 was restarted with only
+`BOT_PARAMS_B={"futureCountNoise":1}` for an alternating live trial. No
+shipped defaults changed. A PowerShell 7 JSON-date conversion discrepancy
+in the restart PID check was fixed by comparing DateTime values; duplicate
+checks passed in PowerShell 5.1 and 7 before the actual restart. A match
+resumed during startup is excluded from A/B scoring. Follow SESSION.md for
+the trial's first labelled match, minimum sample sizes, and stop/adopt rules.
+
 ## Live opponents and the tournament phases (2026-10-23)
 
 **The strongest live opponent.** "bot" (id 7) beat LetterShark in 3 of

@@ -1,7 +1,7 @@
 // Measures the shipped strategy's decision latency in simulation, with the
 // live client's between-round precompute enabled.
 //
-//   node sim/latency.ts [matches]
+//   node sim/latency.ts [matches] [--params '{"futureCountNoise":1}']
 //
 // Reports p50/p99/max of chooseWord (word decision) and decideBid (bid
 // decision) overall and on the largest racks seen (top 5% by rack size).
@@ -10,6 +10,7 @@ import { runMatch, type SeatSpec } from "./engine.ts";
 import { makeSeat } from "./registry.ts";
 import { createAgent } from "../src/strategy.ts";
 import type { Agent } from "../src/strategy/agent.ts";
+import type { Params } from "../src/strategy/params.ts";
 import type { AuctionView, Decision } from "../src/game/types.ts";
 import "./strategies.ts";
 
@@ -21,11 +22,11 @@ export interface Sample {
 }
 
 /** Wraps an Agent to record per-decision timings. */
-export function timedSeat(samples: Sample[]): SeatSpec {
+export function timedSeat(samples: Sample[], params: Partial<Params> = {}): SeatSpec {
   return {
     name: "final",
     make: () => {
-      const a: Agent = createAgent("final");
+      const a: Agent = createAgent("final", undefined, params);
       const onAuction = a.onAuction.bind(a);
       const prepareNext = a.prepareNext.bind(a);
       let last: Sample | null = null;
@@ -45,7 +46,7 @@ export function timedSeat(samples: Sample[]): SeatSpec {
   };
 }
 
-export function collect(matches: number): Sample[] {
+export function collect(matches: number, params: Partial<Params> = {}): Sample[] {
   const samples: Sample[] = [];
   const fields = [
     ["agent", "agent", "v4", "aggr", "overbidder"],
@@ -54,7 +55,7 @@ export function collect(matches: number): Sample[] {
   ];
   for (let m = 0; m < matches; m++) {
     const field = fields[m % fields.length]!;
-    const seats = [timedSeat(samples), ...field.map((f) => makeSeat(f))];
+    const seats = [timedSeat(samples, params), ...field.map((f) => makeSeat(f))];
     runMatch(seats, { auctionType: m % 2 ? "FirstPrice" : "Vickrey", seed: 9000 + m, prepare: true });
   }
   return samples;
@@ -67,7 +68,9 @@ export function pct(xs: number[], p: number): number {
 
 if (process.argv[1]?.replace(/\\/g, "/").endsWith("sim/latency.ts")) {
   const n = Number(process.argv[2] ?? 60);
-  const s = collect(n);
+  const paramsAt = process.argv.indexOf("--params");
+  const params: Partial<Params> = paramsAt === -1 ? {} : JSON.parse(process.argv[paramsAt + 1]!);
+  const s = collect(n, params);
   const big = s.slice().sort((a, b) => b.rack - a.rack).slice(0, Math.max(1, Math.floor(s.length * 0.05)));
   const row = (label: string, xs: Sample[]) =>
     `| ${label} | ${xs.length} | ${Math.max(...xs.map((x) => x.rack))} | ` +

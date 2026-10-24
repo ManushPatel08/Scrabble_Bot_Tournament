@@ -19,7 +19,9 @@ $launcher = Get-Process -Id $runner.launcherPid -ErrorAction SilentlyContinue
 $snapshot = @(Get-CimInstance Win32_Process)
 if ($launcher) {
   $rootInfo = $snapshot | Where-Object ProcessId -eq $runner.launcherPid
-  if ($launcher.StartTime.ToUniversalTime().ToString('o') -ne $runner.processStartUtc -or
+  # PowerShell 7 converts ISO JSON timestamps to DateTime; 5.1 leaves strings.
+  $expectedStart = ([datetime]$runner.processStartUtc).ToUniversalTime()
+  if ($launcher.StartTime.ToUniversalTime() -ne $expectedStart -or
       $rootInfo.CommandLine -notmatch 'run\.ps1' -or $rootInfo.CommandLine -notmatch 'LetterSharkPro') {
     throw 'Recorded PID no longer identifies this launcher; no processes stopped.'
   }

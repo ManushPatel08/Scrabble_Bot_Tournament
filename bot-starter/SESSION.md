@@ -19,7 +19,7 @@ anything. The existing login successfully created the requested team.
   scripts/restart-live.ps1 -IfDown` to recover a stopped launcher. It
   refuses to start a duplicate and checks the recorded process identity.
 - A deliberate restart waits up to 100 seconds for a match boundary:
-  `& .\scripts\restart-live.ps1 -ParamsB '{"futureWinBias":1,"contestPricePrior":1,"contestBudget":3}'`.
+  `& .\scripts\restart-live.ps1 -ParamsB '{"futureCountNoise":1}'`.
   Without ParamsB it clears all experimental overrides.
 - Tokens remain only in the launcher/child environment. Never display,
   persist, inspect process environments for, or commit credentials. The
@@ -48,10 +48,38 @@ not a causal simulator. **The candidate was rejected before a live trial**:
 full-set confirmation (340 matches x 4 seeds) was 2.96 vs 2.96 mean place,
 wins 20.4% vs 21.3%, score 83.5 vs 84.0. The recent-subset sensitivity
 was favorable (3.06 vs 3.21) but did not overturn the full-set regression.
-No live A/B was started; the default is running alone. Do not retry it.
+That acquisition/price candidate never entered a live A/B. Do not retry it.
+
+## Current candidate: uncertain future acquisition counts
+
+After the user explicitly requested more tweaks, experiments 97–101 tested
+five new mechanisms: future-aware word selection, credit for long-word
+completion cash, recent-auction win-share windows, immediate-score blends,
+and binomial future acquisition counts. The first four failed the replay
+bar. All switches remain off in the shipped defaults.
+
+**Candidate B is `{"futureCountNoise":1}` only.** Each MC future samples
+the number of usable future auctions won from a binomial distribution
+using the current win-share estimate, then draws that many unseen tiles
+up to the existing horizon cap. The old model fixes every sample's count
+to the rounded expected number. No opponent bids/private data are used.
+
+Confirmation, experiment 103: **340 matches x 4 seeds**, default vs B:
+mean place **2.96 vs 2.86**, wins **21.3% vs 23.0%**, score **84.0 vs
+85.4**; paired place change **-0.099 +/- 0.076** (approximate 95%,
+clustered by match). Independent fresh-match check, experiment 104:
+**31 matches x 8 seeds**, place **3.05 vs 2.85**, wins **15.7% vs
+19.8%**, score **82.7 vs 85.6**; paired change **-0.198 +/- 0.148**.
+Seeds are repeated samples of the same matches, not new opponents.
+
+The live A/B **started at fresh match #1988**, after excluding the startup
+resume of #1983. Launcher PID 89244; `runner-state.json` is authoritative.
+Experiment 105 passed: 408 decisions, bid p99 21.44 ms / max 24.0 ms.
+All other switches stay at the shipped default. No extra replay/simulation
+experiments may run during this live trial. Use the adoption rules below.
 
 Check `logs/runner-state.json` before any future live A/B.
-Score with `node scripts/ab-live.mjs logs/codex-live.log --since 1741`.
+Score with `node scripts/ab-live.mjs logs/codex-live.log --since 1988`.
 Only labelled fresh-start matches count; old unlabelled baseline matches
 are excluded automatically. Do not mix a different trial into this log.
 
@@ -67,7 +95,7 @@ are excluded automatically. Do not mix a different trial into this log.
   `tournament scrabblebot-bot:main`, then restarts with no B overrides.
 - If no A/B is active, an improvement check may investigate one genuinely
   new hypothesis, preserving defaults and using <=4 simulation workers.
-  Do not repeat experiments 84–96 or the already rejected ideas in
+  Do not repeat experiments 84–105 or the already rejected ideas in
   RESULTS.md. Save every result, require >=0.08 replay place improvement
   with noninferior wins/score before another live trial, and inspect
   SLOW/LATE/Auction closed log entries after each replay. Never overlap

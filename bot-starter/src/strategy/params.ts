@@ -13,6 +13,8 @@ export interface Params {
   /** Prior share of future auctions we expect to win, and its pseudo-count. */
   winPrior: number;
   winPriorWeight: number;
+  /** Use only this many recent auctions to estimate future win share (0 = whole match). */
+  winHistoryWindow: number;
   /** 1 = scale winPrior by 6 / active players in matches with more than 6 (big bracket matches). */
   winPriorScale: number;
   /**
@@ -75,6 +77,8 @@ export interface Params {
   contestBudget: number;
   /** Blend contest floors with frozen historical per-letter winning bids (0 = off, 1 = full). */
   contestPricePrior: number;
+  /** Extra currency reservation for a tile that completes an immediately cashable long word (0 = off). */
+  completionCredit: number;
   /**
    * Cap (coins) on bids for J, Q, X and Z before the last third of the match
    * (0 = off). The live leaders buy them late, at about half the early price.
@@ -90,6 +94,8 @@ export interface Params {
   futureBias: number;
   /** Weight future samples by historical own per-letter acquisition rates (0 = off). */
   futureWinBias: number;
+  /** Blend fixed future acquisition counts with binomial samples (0 = fixed, 1 = full uncertainty). */
+  futureCountNoise: number;
   /** 1 = sample futures from the tracked unseen pool; 0 = from the full 98-tile bag. */
   trackBag: number;
   /** Final auction: 2 = exact best partition, 1 = greedy partition, 0 = no special play-out. */
@@ -98,6 +104,8 @@ export interface Params {
   endgameExact: number;
   /** Try this many first words in each future's value estimate (0 = greedy). */
   valuationBranches: number;
+  /** Blend future marginal value with marginal points spellable now (0 = future model only). */
+  immediateValueWeight: number;
 
   // --- money (shadow price mu: score points per unit of currency) ---
   mu0: number;
@@ -156,6 +164,8 @@ export interface Params {
   // --- play timing ---
   /** Words at least this long are played as soon as they exist. */
   autoPlayLen: number;
+  /** Score 7+ word choices by immediate cash plus this weight on future rack value (0 = greedy). */
+  wordLookahead: number;
   /** 1 = cash shorter words when money is worth more than the lost flexibility. */
   cashTiming: number;
   /** Shortest word considered for early cashing. */
@@ -196,6 +206,7 @@ export const DEFAULT_PARAMS: Params = {
   samples: 96,
   winPrior: 0.35,
   winPriorWeight: 10,
+  winHistoryWindow: 0,
   winPriorScale: 0,
   moneyShareWeight: 0,
   priorByRivals: 1.3,
@@ -206,14 +217,17 @@ export const DEFAULT_PARAMS: Params = {
   contestFrac: 1.2,
   contestBudget: 2,
   contestPricePrior: 0,
+  completionCredit: 0,
   premiumCap: 0,
   horizonCap: 20,
   futureBias: 0,
   futureWinBias: 0,
+  futureCountNoise: 0,
   trackBag: 1,
   endPlayout: 2,
   endgameExact: 0,
   valuationBranches: 0,
+  immediateValueWeight: 0,
   mu0: 0.5,
   muTimeExp: 0.7,
   muBalExp: 0.5,
@@ -235,6 +249,7 @@ export const DEFAULT_PARAMS: Params = {
   fpShade: 0.7,
   fpModel: 0,
   autoPlayLen: 7,
+  wordLookahead: 0,
   cashTiming: 0,
   cashMinLen: 4,
   taxShade: 1,
