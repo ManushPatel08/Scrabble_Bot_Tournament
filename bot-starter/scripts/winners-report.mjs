@@ -4,6 +4,7 @@
 //
 //   node scripts/winners-report.mjs [since match id]
 
+const H = process.env.STDB_HOST ?? "https://maincloud.spacetimedb.com";
 const SINCE = Number(process.argv[2] ?? 600);
 const { token } = await (await fetch(`${H}/v1/identity`, { method: "POST" })).json();
 const q = async (s) => { const r = await fetch(`${H}/v1/database/scrabblebot/sql`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: s }); return (await r.json())[0].rows; };
@@ -19,7 +20,7 @@ const feats = ["score", "letters", "early", "mid", "late", "paid", "avgPaid", "a
 const sum = { win: {}, rest: {} }; let nw = 0, nr = 0, nMatches = 0;
 for (const f of feats) { sum.win[f] = 0; sum.rest[f] = 0; }
 for (const [m, ps] of parts) {
-  if (ps.length < 5 || ps.some(([, b]) => bots.get(b).s)) continue;
+  if (ps.length < 5 || ps.some(([, b]) => bots.get(b)?.s)) continue;
   const rs = (res.get(m) ?? []).sort((a, b) => a[1] - b[1]); const n = rs.length; if (n < 50) continue;
   const ws = (words.get(m) ?? []).sort((a, b) => a[4] - b[4]);
   const max = Math.max(...ps.map((p) => p[2]));

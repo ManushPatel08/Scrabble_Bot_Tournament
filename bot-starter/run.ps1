@@ -20,6 +20,8 @@ param(
   [switch]$Quiet,           # one log line per match instead of per auction
   [switch]$FromClipboard,   # take the token from the clipboard (npm run get-token) and clear it
   [switch]$NewToken,        # mint a fresh token (spacetime login) straight into this process: no clipboard
+  [string]$Team,            # with -NewToken, first time only: create this team...
+  [string]$Bot,             # ...and this bot (otherwise your existing team is used)
   [string]$LogFile          # also append timestamped log lines to this file (never the token)
 )
 
@@ -29,7 +31,10 @@ Set-Location -Path $PSScriptRoot
 if ($NewToken) {
   # get-token --pipe prints one "BOT_TOKEN=..." line; it goes into this
   # process's environment only. Status lines (stderr) still show.
-  $minted = & npx tsx scripts/get-token.ts --pipe | Where-Object { $_ -like "BOT_TOKEN=*" } | Select-Object -Last 1
+  $tokenArgs = @("--pipe")
+  if ($Team) { $tokenArgs += @("--team", $Team) }
+  if ($Bot) { $tokenArgs += @("--bot", $Bot) }
+  $minted = & npx tsx scripts/get-token.ts @tokenArgs | Where-Object { $_ -like "BOT_TOKEN=*" } | Select-Object -Last 1
   if ($minted) { $env:BOT_TOKEN = $minted.Substring(10).Trim() }
   Remove-Variable minted -ErrorAction SilentlyContinue
 }

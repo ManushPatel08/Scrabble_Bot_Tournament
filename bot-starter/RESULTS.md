@@ -73,8 +73,11 @@ interleaved ones, where matches alternate between two parameter sets):
 | interleaved: default vs priorByRivals 0.7 | 2 / 3 | | 3.00 / 3.33 | too short; replaced |
 | interleaved: default vs mu0 0.7 + endMuScale 0.3 (late sweep) | 1 / 1 | | 2.00 / 6.00 | dropped: bid 54 for an H late, 38 for a round-1 Z |
 | interleaved: default vs bidCapFrac 0.3, #523-551 | 5 / 5 | **40%** / 0% | **2.00** / 4.60 | dropped (about 4 SE apart) |
+| interleaved: default vs mu0 0.435, #1000-1008 | 2 / 2 | | | too short; replaced |
+| interleaved: default vs **priorByRivals 1.3 + contestFrac 1.2**, #1009-1207 | 20 / 19 | 25% / 26% | 2.95 / **2.47** (0 last places) | **shipped** 2026-10-24 03:20 (market replay 2.82 vs 2.96) |
+| LetterSharkPro: interleaved default vs contestFrac 1.4 + contestBudget 3, from 03:43 PT | | | | running (replay 2.83 vs 2.86, experiment 83) |
 
-The default (priorByRivals 1.0) beat every interleaved variant. Only the change that made the bot more cautious early held up live; every
+Until the contestFrac trial, the default (priorByRivals 1.0) beat every interleaved variant. Only the change that made the bot more cautious early held up live; every
 variant that bid more aggressively did worse live, even where the
 simulator preferred it. The simulator's opponents bid less than the live
 field, so they reward aggression that real rivals punish. The website
@@ -99,9 +102,33 @@ other five at the same table.
 
 Winners neither bid higher nor pay more per letter; they win more letters at
 the market price, mostly mid- and late-game, including more rare letters, and
-turn them into more long words. LetterSharkX matches the "rest" column
-(10.6 letters, 34 coins left), which points at bidding market-level on more
-letters, not at caps or reserves (both lost live).
+turn them into more long words. LetterSharkX matched the "rest" column
+(11.7 letters, 32 coins left), which pointed at bidding market-level on more
+letters, not at caps or reserves (both lost live). That is what contestFrac
+does (bid at least 1.2x the match's median price on any letter the bot has
+any use for, within 2x its fair money share), and it was the first
+"buy more" change to win live (table above).
+
+`scripts/player-profiles.mjs` profiles every player the same way (334
+all-human matches since #900, 15+ matches each). The best mean places
+belong to bots that buy 13-15 letters at or below the market price and
+finish with 11-25 coins: postturing (2.26: 15.2 letters at 11.7 each, 15
+left), Nijello (2.50: 6.3 of its 13.1 letters in the last third), Doppio
+(2.61: 4.5/4.5/4.5 by phase, 11 left). Bots that hoard (MagnusBot 64 left,
+PathAndLight 55, hinsonloo 52) finish near last. LetterSharkX sat at 3.07
+with 11.7 letters and 32 left; the shipped config buys about one letter
+more and leaves about 3 coins less in the replay.
+
+The market replay is conservative about buying: when the candidate takes a
+letter a rival actually won, the rival keeps its recorded words and score.
+So it understates "buy more" changes (contestFrac 1.2 replayed at +0.14
+places and measured +0.48 live), and a candidate that replays as no worse
+while buying more letters and leaving less money is still worth a live
+trial. Experiment 83 (253 matches x 4 seeds, against the shipped config at
+2.86): contestFrac 1.4 + contestBudget 3 at 2.83 with 12.0 letters and 28.7
+coins left; endMuScale 0.5-0.7 spends down to 27 coins but places the same;
+mu0 0.45 is worse (3.00); priorByRivals 1.5, futureBias 0.5 and horizonCap
+12 are no better.
 
 ## Live opponents and the tournament phases (2026-10-23)
 

@@ -38,7 +38,10 @@ async function sql(q) {
 }
 const some = (opt) => (opt[0] === 0 ? opt[1] : null);
 const bots = new Map((await sql("SELECT id, name, is_simulated FROM bot")).map(([id, name, sim]) => [id, { name, sim }]));
-const idOf = (name) => [...bots].find(([, b]) => b.name === name)?.[0];
+// Our retired bots are gone from the bot table (a team is deleted with its
+// last member), so their ids are kept here.
+const RETIRED = { LetterShark: 8, LetterSharkX: 61 };
+const idOf = (name) => [...bots].find(([, b]) => b.name === name)?.[0] ?? RETIRED[name];
 
 const matches = [];
 for (const [matchId, start] of [...starts].sort((a, b) => a[0] - b[0])) {

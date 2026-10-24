@@ -1,12 +1,12 @@
-# Progress (updated 2026-10-23)
+# Progress (updated 2026-10-24)
 
 Work happens in the clone at `C:\Users\Manush\Desktop\Scrabblebot\scrabblebot`,
 on branch `scrabblebot-bot`, merged with upstream's tournament version
 (`3064b36`).
 
-## Status: live as LetterShark, waiting for the tournament
+## Status: live as LetterSharkPro, waiting for the tournament
 
-**Right now (2026-10-24, 01:35 PT):** fresh start as **LetterSharkX** (bot id 61, team **Team Manush 2**), created at the user's request. The old LetterShark (id 8, Team Manush) could not be deleted: an unknown anonymous identity had joined that team (anyone can join any team by name), and a team is only deleted when its last member leaves. LetterSharkX runs the shipped config (96 samples + priorByRivals 1.0) in the lobby (`run.ps1 -BotName LetterSharkX -NewToken -LogFile logs\lobby.log`). Tournament day: the same with `-NoLobby`.
+**Right now (2026-10-24, 03:25 PT):** fresh start as **LetterSharkPro** (bot id 70, team **Team Manush 3**), on the shipped config (96 samples, priorByRivals 1.3, contestFrac 1.2), in the lobby (`run.ps1 -BotName LetterSharkPro -NewToken -LogFile logs\lobby.log`; `-Team`/`-Bot` were only needed on the first start). Tournament day: the same with `-NoLobby`. The earlier bots are retired: LetterSharkX (id 61, Team Manush 2) was deleted by leaving its team; LetterShark (id 8, Team Manush) could not be, because an unknown anonymous identity had joined that team (anyone can join any team by name) and a team is only deleted when its last member leaves.
 
 - **Event:** ScrabbleBot tournament, Cal Hacks 13.0, **12:00 AM Sunday**
   (Saturday night), live: Swiss rounds, a cut, elimination, then a
@@ -30,7 +30,7 @@ on branch `scrabblebot-bot`, merged with upstream's tournament version
    program staying open:
    ```powershell
    cd C:\Users\Manush\Desktop\Scrabblebot\scrabblebot\bot-starter
-   powershell -ExecutionPolicy Bypass -File .\run.ps1 -BotName LetterSharkX -NewToken -NoLobby -LogFile logs\tournament.log
+   powershell -ExecutionPolicy Bypass -File .\run.ps1 -BotName LetterSharkPro -NewToken -NoLobby -LogFile logs\tournament.log
    ```
    - `-NewToken` mints a fresh token with your `spacetime login` and passes
      it straight into the bot: it isn't shown, saved or put on the

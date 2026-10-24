@@ -103,6 +103,10 @@ export const VERSIONS: Record<string, Params> = {
   //        2026-10-24: the prior share of future auctions follows the
   //        number of real rivals (priorByRivals 1.0): live all-human tables
   //        went from 22% wins / rank 3.28 to 50% / 2.25 (RESULTS.md).
+  //        2026-10-24 03:50: priorByRivals 1.3 + contestFrac 1.2 (bid at least
+  //        1.2x the match median price on any useful letter): market replay
+  //        2.82 vs 2.96; live interleaved 16 vs 18 matches, mean place 2.31
+  //        vs 3.11, no last places.
   //        Shipped by src/strategy.ts.
   final: {
     ...COMMON,
@@ -117,6 +121,7 @@ export const VERSIONS: Record<string, Params> = {
     samples: 96,
     fpPlus: 1,
     leaderTaxDuel: 0.85,
-    priorByRivals: 1.0,
+    priorByRivals: 1.3,
+    contestFrac: 1.2,
   },
 };
