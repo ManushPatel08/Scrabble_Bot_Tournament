@@ -164,9 +164,11 @@ Options:
 Tournament day, in a window of its own:
 
 ```powershell
-npm run get-token
-powershell -ExecutionPolicy Bypass -File .\run.ps1 -BotName LetterShark -FromClipboard -NoLobby -LogFile logs\tournament.log
+powershell -ExecutionPolicy Bypass -File .\run.ps1 -BotName LetterShark -NewToken -NoLobby -LogFile logs\tournament.log
 ```
+
+`-NewToken` mints a fresh token with your `spacetime login` (`get-token
+--pipe`) and passes it straight into the bot, without the clipboard.
 
 **Any shell.**
 

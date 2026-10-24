@@ -157,17 +157,30 @@ function copyToClipboard(text: string): Promise<void> {
 
 // ---------------------------------------------------------------- main
 
+// --pipe: hand the token to the calling launcher on stdout as one
+// "BOT_TOKEN=..." line (run.ps1 -NewToken captures it into its own
+// environment; nothing is shown or saved). Status lines go to stderr.
+// For when the clipboard is unavailable (another app holding it open).
+const pipe = process.argv.includes("--pipe");
+if (pipe) console.log = (...a: unknown[]) => console.error(...a);
+
 try {
   const given = arg("code");
   const { code, botName } = given ? { code: given, botName: "your bot" } : await mintNonce();
   const token = await claim(code);
-  await copyToClipboard(token);
-  console.log(
-    `Done: a new token for ${botName === "your bot" ? botName : `'${botName}'`} is on the clipboard.\n` +
-      "It isn't shown or saved anywhere. Paste it into run.ps1's prompt now (right-click or Ctrl+V),\n" +
-      "and keep a copy in a password manager if you want to reuse it.",
-  );
-  process.exitCode = 0;
+  if (pipe) {
+    process.stdout.write(`BOT_TOKEN=${token}\n`);
+    console.error(`get-token: a new token for '${botName}' was handed to the launcher.`);
+    process.exitCode = 0;
+  } else {
+    await copyToClipboard(token);
+    console.log(
+      `Done: a new token for ${botName === "your bot" ? botName : `'${botName}'`} is on the clipboard.\n` +
+        "It isn't shown or saved anywhere. Paste it into run.ps1's prompt now (right-click or Ctrl+V),\n" +
+        "and keep a copy in a password manager if you want to reuse it.",
+    );
+    process.exitCode = 0;
+  }
 } catch (e) {
   console.error(`get-token: ${errMsg(e)}`);
   process.exitCode = 1;

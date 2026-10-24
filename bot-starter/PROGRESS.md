@@ -30,11 +30,11 @@ on branch `scrabblebot-bot`, merged with upstream's tournament version
    program staying open:
    ```powershell
    cd C:\Users\Manush\Desktop\Scrabblebot\scrabblebot\bot-starter
-   npm run get-token
-   powershell -ExecutionPolicy Bypass -File .\run.ps1 -BotName LetterShark -FromClipboard -NoLobby -LogFile logs\tournament.log
+   powershell -ExecutionPolicy Bypass -File .\run.ps1 -BotName LetterShark -NewToken -NoLobby -LogFile logs\tournament.log
    ```
-   - `get-token` mints a fresh token onto the clipboard.
-   - `-FromClipboard` moves the token into the bot and clears the clipboard.
+   - `-NewToken` mints a fresh token with your `spacetime login` and passes
+     it straight into the bot: it isn't shown, saved or put on the
+     clipboard (which another app can hold locked).
    - `-NoLobby` stays out of casual games, which would put more of our bids
      into the public archive, but the bot still registers.
 2. Start it **before registration opens**. Then check that the log shows
