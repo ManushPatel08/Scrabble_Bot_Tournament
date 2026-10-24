@@ -753,6 +753,33 @@ share 0.22 -0.10 ± 0.10; **share 0.22 with prices x0.9 -0.18 ± 0.11**
 threshold and goes to confirmation (experiment 124) before it can become
 the next live B.
 
+### Experiment 123: the rollout in tournament formats — **catastrophic in duels**
+
+`sim/compare.ts`, 200 matches per cell, default vs the live B (rollout,
+48 samples), win / mean rank / score / last / margin over the best rival:
+
+| Field | default | rollout |
+|---|---|---|
+| 2-bot final vs v7 (Vickrey) | **81.0% / 1.19 / 291 / +76** | 19.5% / 1.80 / 197 / **-110** |
+| 2-bot final vs the shipped default | 49.5% / 1.50 / 250 / 0 | **7.0%** / 1.93 / 179 / -152 |
+| 2-bot final, first-price | 54.0% / 1.46 / 254 / +5 | 8.5% / 1.92 / 180 / -121 |
+| 6-bot league, first-price | 36.5% / 1.97 / 104 | **46.5% / 1.72 / 107** |
+| 6-bot strong-bot table | **39.5% / 1.92 / 106** | 25.0% / 2.13 / 97 |
+| 6-bot mixed human-like pool | **33.0% / 2.19 / 94** | 22.5% / 2.35 / 90 |
+
+The rollout's prices and win share come from six-player tables. In a duel
+the real prices are far lower and we should win about half the auctions,
+so the planner's future me buys almost nothing, the pass branch looks
+fine, and the bot passes on everything while the rival sweeps. The
+simulator's six-player opponents are weaker than the live field (RESULTS,
+"Live trials"), so the two six-bot losses are a caution rather than a
+verdict; the live A/B is the arbiter there. The duel result is not noise.
+**`rolloutMinPlayers` (default 4) now disables the rollout below four
+active players**, so the final and small bracket tables use the static
+valuation and the duel leader tax that won those cells. The live lobby
+(always six players) is unaffected. Raw:
+`sim/experiments/123-rollout-tournament-fields.md`.
+
 The word rules alone are harmful; the rollout valuation is what carries
 the gain, and it needs the full horizon and enough samples (the bid is
 the zero crossing of a noisy curve). The profile of the result, 13

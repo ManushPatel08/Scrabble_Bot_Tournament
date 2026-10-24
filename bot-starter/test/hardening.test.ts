@@ -268,3 +268,16 @@ test("rollout valuation: affordable, zero on the final auction, reproducible, an
   assert.equal(auto.length, 1);
   assert.equal(auto[0]!.length, 7); // the anagram class of RETAINS is played under its canonical word
 });
+
+test("rolloutMinPlayers: the rollout is used only at tables with enough active players", () => {
+  const R = { rolloutBid: 1, rolloutSamples: 8, rolloutHorizon: 66, rackCap: 11, cashBelow: 8, lateCashLen: 5, lateCashWindow: 12, finalPackWindow: 3 };
+  const bidAt = (n: number, params: Record<string, number>) => {
+    const a = new Agent({ ...FINAL, ...params }, "gate");
+    a.onMatchStart({ seat: 0, nPlayers: n, names: Array.from({ length: n }, (_, i) => "p" + i), simStrategies: Array(n).fill(null),
+      auctionType: "Vickrey", rack: countsOf("RETAI"), seed: 5, offline: Array(n).fill(false) });
+    return a.onAuction({ ...view(n, "Z"), rack: countsOf("RETAI"), round: 1, bagTotal: 98 - 5 * n - 1, balances: Array(n).fill(100), scores: Array(n).fill(0) }).bid;
+  };
+  assert.equal(bidAt(2, R), bidAt(2, { ...R, rolloutBid: 0 })); // duel: static valuation and leader tax, as shipped
+  assert.notEqual(bidAt(6, R), bidAt(6, { ...R, rolloutBid: 0 })); // six players: the rollout decides
+  assert.notEqual(bidAt(2, { ...R, rolloutMinPlayers: 2 }), bidAt(2, { ...R, rolloutBid: 0 })); // gate lowered: rollout in duels too
+});

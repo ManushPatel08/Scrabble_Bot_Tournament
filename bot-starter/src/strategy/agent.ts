@@ -734,7 +734,7 @@ export class Agent implements Policy {
     }
     let reservation = value / this.mu(balance) + credit; // currency we'd pay at most
     let maxBid = value > 0 ? Math.min(balance, Math.floor(reservation)) : 0;
-    if (this.p.rolloutBid > 0 && !t.isFinalAuction()) {
+    if (this.p.rolloutBid > 0 && !t.isFinalAuction() && t.activeN() >= this.p.rolloutMinPlayers) {
       // Rollout valuation: the break-even price from played-out futures
       // replaces the static value / money-formula reservation.
       const r = rolloutBid(

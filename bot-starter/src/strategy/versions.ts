@@ -83,6 +83,7 @@ const COMMON: Params = {
   rolloutPriceScale: 1,
   rolloutTerminalCoin: 0.4,
   rolloutPriceAdapt: 0,
+  rolloutMinPlayers: 4,
   hold7Ext: 0,
   hold7MinLeft: 6,
   taxShade: 1,

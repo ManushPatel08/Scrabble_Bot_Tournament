@@ -239,6 +239,13 @@ export interface Params {
    * letters, blended by this weight and clamped to 0.7-1.4. Needs 5 prices.
    */
   rolloutPriceAdapt: number;
+  /**
+   * Use the rollout only with at least this many active players (us
+   * included). Its price model and win share come from six-player tables;
+   * in the simulator's 2-bot finals it loses by 110 points to the static
+   * valuation and the duel leader tax (experiment 123).
+   */
+  rolloutMinPlayers: number;
   /** Hold a 7-letter word while at least this many unseen tiles would extend it to 8+ (0 = off). */
   hold7Ext: number;
   /** hold7Ext applies only with at least this many usable auctions left. */
@@ -351,6 +358,7 @@ export const DEFAULT_PARAMS: Params = {
   rolloutPriceScale: 1,
   rolloutTerminalCoin: 0.4,
   rolloutPriceAdapt: 0,
+  rolloutMinPlayers: 4,
   hold7Ext: 0,
   hold7MinLeft: 6,
   taxShade: 1,
