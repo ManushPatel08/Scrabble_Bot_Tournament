@@ -6,7 +6,7 @@ on branch `scrabblebot-bot`, merged with upstream's tournament version
 
 ## Status: live as LetterShark, waiting for the tournament
 
-**Right now (2026-10-23, 19:20 PT):** LetterShark runs in tournament mode in its own PowerShell window (`-NoLobby`, log `logs	ournament.log`). It stays connected and registers itself when the organizers open the tournament. Lobby record before switching: 23 wins in 30 matches, never last. The code is pushed to the private repo ManushPatel08/Cal_Hacks_Scrabble_Bot_Tournament (`main`); make it public after the final.
+**Right now (2026-10-23, 19:45 PT):** everything is done and the bot is **stopped** until the tournament. Start it Saturday evening (by about 10 PM PT, no later than 11:30 PM PT) with the commands under "Tournament day" below, and leave it running until the final ends. Lobby record before stopping: 24 wins in 32 matches; two of the losses were matches stopped midway for testing. The code is pushed to the private repo ManushPatel08/Cal_Hacks_Scrabble_Bot_Tournament (`main`); make it public after the final.
 
 - **Event:** ScrabbleBot tournament, Cal Hacks 13.0, **12:00 AM Sunday**
   (Saturday night), live: Swiss rounds, a cut, elimination, then a
