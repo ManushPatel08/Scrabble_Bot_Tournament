@@ -851,6 +851,21 @@ floor overpays for them. Two bugs found by the synthesis are fixed
 gain). Live trial 5 (from #8286): A = live, B = threshold 28 / 0.63.
 Raw: `sim/experiments/128-*`, `129-*`, duels `130-*`.
 
+Experiment 130, simulator (150 matches per field; opponents unrelated to
+the replay's recorded bids), win / mean rank / score / last / margin:
+
+| Field | live (noise 1) | + threshold 28 / 0.63 |
+|---|---|---|
+| 2-bot final vs v7 | 74.0% / 1.26 / 285 / 26.7% / +65 | **88.7% / 1.11 / 308 / 11.3% / +94** |
+| 2-bot final vs the shipped default | 50.0% / 1.50 / 248 / 50.0% / -3 | **70.0% / 1.30 / 277 / 30.7% / +37** |
+| 2-bot final, first-price | 52.0% / 1.48 / 251 / 48.7% / +1 | **76.7% / 1.23 / 283 / 24.7% / +45** |
+| 6-bot strong-bot table | 43.3% / 1.88 / 106 | **58.0% / 1.60 / 118** |
+| 6-bot human-like pool | 42.7% / 2.01 / 99 | **52.7% / 1.81 / 107** |
+
+Better in every field, by a wide margin in duels and first-price, so it
+needs no player-count gate. This is the first candidate today on which
+the replay, the holdout and the simulator all agree.
+
 ### Experiment 123: the rollout in tournament formats — **catastrophic in duels**
 
 `sim/compare.ts`, 200 matches per cell, default vs the live B (rollout,
