@@ -346,6 +346,15 @@ export class Agent implements Policy {
     return 1 + w * (ratio - 1);
   }
 
+  /**
+   * The rollout valuation decides at this table (enough active players).
+   * Its word rules (finalPackWindow, lateCash, rackCap) follow the same
+   * gate, since they were tuned with it and hurt on their own.
+   */
+  rolloutActive(): boolean {
+    return this.p.rolloutBid > 0 && this.t.activeN() >= this.p.rolloutMinPlayers;
+  }
+
   /** Unseen tiles that would give the rack an 8+ letter word (per-rack cache). */
   private extendCache: { key: string; bag: number; n: number } | null = null;
 
@@ -598,7 +607,8 @@ export class Agent implements Policy {
       balances[me]! += this.idx.sigReward[s]!;
     };
 
-    if ((t.isFinalAuction() || (this.p.finalPackWindow > 0 && t.usableFutureAuctions() < this.p.finalPackWindow)) && this.p.endPlayout !== 0) {
+    const wordRules = this.p.rolloutBid > 0 ? this.rolloutActive() : true;
+    if ((t.isFinalAuction() || (wordRules && this.p.finalPackWindow > 0 && t.usableFutureAuctions() < this.p.finalPackWindow)) && this.p.endPlayout !== 0) {
       // Last chance to score: the match ends when this auction closes.
       const plan =
         this.p.endPlayout === 1
@@ -638,7 +648,7 @@ export class Agent implements Policy {
 
     // Late cash: near the end a held word rarely grows, and its coins can
     // still buy the remaining letters.
-    if (this.p.lateCashLen > 0 && t.usableFutureAuctions() < this.p.lateCashWindow) {
+    if (wordRules && this.p.lateCashLen > 0 && t.usableFutureAuctions() < this.p.lateCashWindow) {
       for (;;) {
         const s = this.idx.bestRewardSig(rack, this.p.lateCashLen);
         if (s === -1) break;
@@ -646,7 +656,7 @@ export class Agent implements Policy {
       }
     }
     // Rack cap: a big rack is already a scoring set; cash it and rebuild.
-    if (this.p.rackCap > 0 && rack.reduce((a, b) => a + b, 0) >= this.p.rackCap) {
+    if (wordRules && this.p.rackCap > 0 && rack.reduce((a, b) => a + b, 0) >= this.p.rackCap) {
       for (const w of this.idx.bestPartition(rack, 2, 100_000, 100).words) {
         words.push(w);
         for (let k = 0; k < w.length; k++) rack[w.charCodeAt(k) - 65]!--;
@@ -734,7 +744,7 @@ export class Agent implements Policy {
     }
     let reservation = value / this.mu(balance) + credit; // currency we'd pay at most
     let maxBid = value > 0 ? Math.min(balance, Math.floor(reservation)) : 0;
-    if (this.p.rolloutBid > 0 && !t.isFinalAuction() && t.activeN() >= this.p.rolloutMinPlayers) {
+    if (this.rolloutActive() && !t.isFinalAuction()) {
       // Rollout valuation: the break-even price from played-out futures
       // replaces the static value / money-formula reservation.
       const r = rolloutBid(

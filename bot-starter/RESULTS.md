@@ -753,6 +753,14 @@ share 0.22 -0.10 ± 0.10; **share 0.22 with prices x0.9 -0.18 ± 0.11**
 threshold and goes to confirmation (experiment 124) before it can become
 the next live B.
 
+Experiment 124 confirms it. Paired against the live B (48 samples, share
+0.18): fixed set 340 x 2 seeds, share 0.22 + prices x0.9 **-0.185 ± 0.077**
+(31.3% wins, 91.9 score, 13.5 letters, 10.0 coins left), the same with 96
+samples -0.168 ± 0.077; holdout 92 x 4 seeds, 2.57 vs 2.71 (-0.14 ± 0.11)
+at 48 samples and 2.52 (-0.20 ± 0.12) at 96. That is the queued next B
+("rollout B2": 96 samples, share 0.22, prices x0.9), pending the outcome
+of live trial 4 for the rollout family as a whole.
+
 ### Experiment 123: the rollout in tournament formats — **catastrophic in duels**
 
 `sim/compare.ts`, 200 matches per cell, default vs the live B (rollout,

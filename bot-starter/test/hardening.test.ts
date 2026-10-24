@@ -278,6 +278,17 @@ test("rolloutMinPlayers: the rollout is used only at tables with enough active p
     return a.onAuction({ ...view(n, "Z"), rack: countsOf("RETAI"), round: 1, bagTotal: 98 - 5 * n - 1, balances: Array(n).fill(100), scores: Array(n).fill(0) }).bid;
   };
   assert.equal(bidAt(2, R), bidAt(2, { ...R, rolloutBid: 0 })); // duel: static valuation and leader tax, as shipped
+  {
+    // Duel, late in the match with a 5-letter word on the rack: the rollout's late-cash rule must stay off too.
+    const words = (params: Record<string, number>) => {
+      const a = new Agent({ ...FINAL, ...params }, "gate-words");
+      a.onMatchStart({ seat: 0, nPlayers: 2, names: ["p0", "p1"], simStrategies: [null, null], auctionType: "Vickrey", rack: countsOf("RETAI"), seed: 5, offline: [false, false] });
+      return a.onAuction({ ...view(2, "Z"), rack: countsOf("RETAIN"), round: 80, bagTotal: 8, balances: [100, 100], scores: [0, 0] }).words;
+    };
+    assert.deepEqual(words(R), words({})); // same as the shipped defaults
+    assert.deepEqual(words(R), []);
+    assert.deepEqual(words({ ...R, rolloutBid: 0 }), ["RATINE"]); // the word rules alone, ungated, would cash here
+  }
   assert.notEqual(bidAt(6, R), bidAt(6, { ...R, rolloutBid: 0 })); // six players: the rollout decides
   assert.notEqual(bidAt(2, { ...R, rolloutMinPlayers: 2 }), bidAt(2, { ...R, rolloutBid: 0 })); // gate lowered: rollout in duels too
 });
