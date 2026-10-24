@@ -71,6 +71,8 @@ export interface Params {
    * 5 coins or less.
    */
   contestFrac: number;
+  /** contestFrac budget: at most this many times balance / usable auctions left per letter. */
+  contestBudget: number;
   /** Cap on future letters per sample (keeps evaluation cheap). */
   horizonCap: number;
   /**
@@ -183,6 +185,7 @@ export const DEFAULT_PARAMS: Params = {
   endMuScale: 0,
   marketCap: 0,
   contestFrac: 0,
+  contestBudget: 2,
   horizonCap: 20,
   futureBias: 0,
   trackBag: 1,

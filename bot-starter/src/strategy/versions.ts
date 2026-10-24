@@ -19,6 +19,7 @@ const COMMON: Params = {
   endMuScale: 0,
   marketCap: 0,
   contestFrac: 0,
+  contestBudget: 2,
   horizonCap: 20,
   futureBias: 0,
   trackBag: 1,
