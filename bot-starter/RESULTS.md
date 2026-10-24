@@ -70,8 +70,11 @@ interleaved ones, where matches alternate between two parameter sets):
 | interleaved: default vs mu0 0.4 | 11 / 9 | 27% / 33% | 3.27 / 3.00 | inconclusive |
 | interleaved: default vs mu0 0.4 + marketCap 2 | 9 / 8 | 33% / 25% | 2.67 / 2.75 | even, dropped |
 | interleaved: default vs contestFrac 0.8 + marketCap 2 | 7 / 6 | 14% / 17% | 2.86 / 3.50 | dropped (sims favoured it: 40.0% vs 35.8% at 400 matches) |
+| interleaved: default vs priorByRivals 0.7 | 2 / 3 | | 3.00 / 3.33 | too short; replaced |
+| interleaved: default vs mu0 0.7 + endMuScale 0.3 (late sweep) | 1 / 1 | | 2.00 / 6.00 | dropped: bid 54 for an H late, 38 for a round-1 Z |
+| interleaved: default vs bidCapFrac 0.3, #523-551 | 5 / 5 | **40%** / 0% | **2.00** / 4.60 | dropped (about 4 SE apart) |
 
-Only the change that made the bot more cautious early held up live; every
+The default (priorByRivals 1.0) beat every interleaved variant. Only the change that made the bot more cautious early held up live; every
 variant that bid more aggressively did worse live, even where the
 simulator preferred it. The simulator's opponents bid less than the live
 field, so they reward aggression that real rivals punish. The website
