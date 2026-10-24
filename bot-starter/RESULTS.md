@@ -673,6 +673,65 @@ and the one candidate the replay liked most lost by 0.68. Replay effects
 of 0.1-0.2 places are below what the live gate can resolve in an hour,
 and at least one such effect did not transfer at all.
 
+## Rollout valuation (experiments 118-120, 2026-10-24 10:00-11:00 PT)
+
+The user shared Lambi Lambiii's planner description (bot #77, mean place
+2.2): a one-step rollout that plays sampled futures out to the end of the
+match with a hand-written "future me", pairs the pass and win branches on
+the same future, and bids where the averaged gain curve crosses zero.
+`src/strategy/rollout.ts` implements that inside our engine, behind
+`rolloutBid` (default 0):
+
+- Futures: the next H auction letters from the tracker's unseen pool, and
+  a highest-rival-bid price for each from `rival-prices.ts`, frozen
+  quantiles of the public archive's winning bids by letter and game third
+  (through #1761; never live bids). H = 66 plays the whole match out.
+- Future me: cashes 7+ letter words, the whole rack at 11+ tiles, 5+
+  letter words in the last 12 auctions, everything in the last 3, and a
+  word when below 8 coins; it buys each letter by bidding the price
+  quantile that wins a target share (`rolloutShare` 0.18), raised for
+  letters that fit its rack (`letterUsefulness`) and for a letter that
+  completes a 7+ word. The live bot uses the same word rules through
+  `rackCap 11, cashBelow 8, lateCashLen 5 / lateCashWindow 12,
+  finalPackWindow 3`, so coins saved by passing are spent as the bot
+  would spend them. The first version, with Lambi's face-value bidding
+  rule, reproduced the bias its authors describe (86 for a round-1 Z).
+- Bid: 1, the letter's archive quantiles and the balance form the price
+  grid; the mean of score(win at p) - score(pass) over the samples is
+  interpolated to its zero crossing.
+
+| Dataset | Variant | Wins | Mean place | Last | Score | Letters | Coins left | Paired vs default |
+|---|---|--:|--:|--:|--:|--:|--:|--:|
+| 340 x 1 seed (118) | default | 21.5% | 2.93 | 5.9% | 84.7 | 11.4 | 32.1 | |
+| | rollout, 24 samples | 22.6% | 2.73 | 3.5% | 86.3 | 12.9 | 13.0 | -0.20 ± 0.15 |
+| | rollout, 48 samples | 27.1% | 2.54 | 1.5% | 88.9 | 13.0 | 12.7 | **-0.39 ± 0.15** |
+| | 24 samples, share 0.25 | 25.6% | 2.70 | 3.5% | 87.6 | 13.1 | 11.7 | -0.23 ± 0.15 |
+| | 24 samples, share 0.12 | 17.1% | 3.07 | 4.7% | 80.7 | 11.6 | 21.7 | +0.14 |
+| | 24 samples, prices x1.15 | 19.7% | 2.95 | 2.9% | 82.6 | 12.7 | 9.1 | +0.02 |
+| | 24 samples, horizon 20 | 17.6% | 2.97 | 3.8% | 82.4 | 12.4 | 13.1 | +0.04 |
+| | word rules alone, static valuation | 17.9% | 3.10 | 6.8% | 81.4 | 11.7 | 24.6 | +0.17 ± 0.09 |
+| 340 x 2 seeds (119) | default | 22.1% | 2.93 | 6.3% | 84.5 | 11.5 | 31.1 | |
+| | rollout, 48 samples | 26.5% | 2.57 | 1.6% | 88.7 | 12.9 | 13.0 | see file |
+| **Holdout #1905-2409, 92 x 4 seeds (120)** | default | 19.0% | 3.29 | 10.3% | 77.8 | 10.1 | 32.2 | |
+| | **rollout, 48 samples** | **27.7%** | **2.71** | **3.3%** | **85.3** | 12.3 | 12.8 | **-0.57 ± 0.21** |
+
+The holdout was frozen at 08:05 PT, before any of today's screening, and
+is the first independent set on which a candidate's gain *grew* rather
+than shrank. Live trial 4 started at 10:44 PT on bot 95: A = the running
+`futureCountNoise 1`, B = the rollout configuration merged over it
+(`rolloutBid 1, rolloutSamples 48, rolloutHorizon 66, rackCap 11,
+cashBelow 8, lateCashLen 5, lateCashWindow 12, finalPackWindow 3`).
+The usual gates apply: 25 per arm, adopt at >= 0.4 better with
+noninferior wins and score; a replay effect of 0.4-0.6 is the first one
+today that the live gate can actually resolve.
+
+The word rules alone are harmful; the rollout valuation is what carries
+the gain, and it needs the full horizon and enough samples (the bid is
+the zero crossing of a noisy curve). The profile of the result, 13
+letters and 12 coins left, is the public leaders' profile. Decision
+latency with 48 samples: bid p50 29 ms, p99 75 ms, max 84 ms (96 samples:
+p99 116 ms). Holdout: `sim/experiments/120-rollout-holdout-s48.md`.
+
 ## Live opponents and the tournament phases (2026-10-23)
 
 **The strongest live opponent.** "bot" (id 7) beat LetterShark in 3 of

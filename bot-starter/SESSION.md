@@ -28,8 +28,19 @@ instruction. The originals are backed up in the Claude session scratchpad.
 A process watcher saw no Codex-spawned process at the 07:43 health slot.
 Do not reactivate them while Claude controls the bot.
 
-Current configuration: bot 95, standalone `{"futureCountNoise":1}`, log
-`logs/manush4-live.log`, **no live A/B**. Bot 86's log
+Current configuration: **bot 95, live trial 4 from 10:44 PT** (launcher
+PID 118320, start 2026-10-24T17:43:46.6327586Z, log
+`logs/manush4-live.log`, `trialSince` in runner-state.json). A =
+`BOT_PARAMS={"futureCountNoise":1}`; B = `BOT_PARAMS_B={"rolloutBid":1,
+"rolloutSamples":48,"rolloutHorizon":66,"rackCap":11,"cashBelow":8,
+"lateCashLen":5,"lateCashWindow":12,"finalPackWindow":3}` (the rollout
+valuation, RESULTS.md "Rollout valuation": replay 2.57 vs 2.93, holdout
+2.71 vs 3.29). Score with `node scripts/ab-live.mjs logs/manush4-live.log
+--since <trialSince>`. Interim rollback rules: B >= 0.8 worse at 10 per
+arm, or >= 0.6 worse at 15, stops B early; otherwise the 25/45 gates.
+Adoption means shipping the B parameters into DEFAULT_PARAMS and
+VERSIONS.final (the user has asked for continuous upgrades; confirm the
+tournament default with them before 21:00). Bot 86's log
 (`logs/retired-86-live.log` = `logs/manush3-live.log`) holds three
 trials, scored only with `--since`: trial 1 #2332-2563 (B =
 futureCountNoise 1) inconclusive at 21 per arm, A 3.24 / 24% / 79 vs
