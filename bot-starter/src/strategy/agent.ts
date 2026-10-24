@@ -402,11 +402,13 @@ export class Agent implements Policy {
         : !fp && duel && this.p.duelMuTimeExp > 0
           ? this.p.duelMuTimeExp
           : this.p.muTimeExp;
+    const end = this.p.endMuScale > 0 && frac < 1 / 3 ? this.p.endMuScale + (1 - this.p.endMuScale) * 3 * frac : 1;
     return (
       mu0 *
       Math.pow(frac, timeExp) *
       Math.pow(this.p.refBalance / bal, this.p.muBalExp) *
-      Math.exp(this.logPace)
+      Math.exp(this.logPace) *
+      end
     );
   }
 

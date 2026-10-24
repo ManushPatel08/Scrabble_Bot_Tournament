@@ -46,6 +46,13 @@ export interface Params {
    * of place (8+ late letters: 43% wins; 0-1: 4%).
    */
   lateReserve: number;
+  /**
+   * 0 = off. In the last third of the match the money price falls linearly
+   * to this multiple of the formula by the final auction, so leftover coins
+   * (worthless at the end) are bid away. Live 2026-10-23: LetterShark ended
+   * with 36 coins on average while the best bots bid ~20 in the last third.
+   */
+  endMuScale: number;
   /** Cap on future letters per sample (keeps evaluation cheap). */
   horizonCap: number;
   /**
@@ -152,9 +159,10 @@ export const DEFAULT_PARAMS: Params = {
   winPriorWeight: 10,
   winPriorScale: 0,
   moneyShareWeight: 0,
-  priorByRivals: 0,
+  priorByRivals: 1.0,
   bidCapFrac: 0,
   lateReserve: 0,
+  endMuScale: 0,
   horizonCap: 20,
   futureBias: 0,
   trackBag: 1,

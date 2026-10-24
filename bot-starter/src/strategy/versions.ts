@@ -16,6 +16,7 @@ const COMMON: Params = {
   priorByRivals: 0,
   bidCapFrac: 0,
   lateReserve: 0,
+  endMuScale: 0,
   horizonCap: 20,
   futureBias: 0,
   trackBag: 1,
@@ -96,6 +97,9 @@ export const VERSIONS: Record<string, Params> = {
   //        2026-10-23: 96 Monte Carlo samples instead of 48 (better in all
   //        five fields at 400 matches each, RESULTS.md; decisions stay
   //        well inside the live window).
+  //        2026-10-24: the prior share of future auctions follows the
+  //        number of real rivals (priorByRivals 1.0): live all-human tables
+  //        went from 22% wins / rank 3.28 to 50% / 2.25 (RESULTS.md).
   //        Shipped by src/strategy.ts.
   final: {
     ...COMMON,
@@ -110,5 +114,6 @@ export const VERSIONS: Record<string, Params> = {
     samples: 96,
     fpPlus: 1,
     leaderTaxDuel: 0.85,
+    priorByRivals: 1.0,
   },
 };
