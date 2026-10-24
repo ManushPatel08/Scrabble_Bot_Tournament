@@ -712,8 +712,16 @@ the same future, and bids where the averaged gain curve crosses zero.
 | | word rules alone, static valuation | 17.9% | 3.10 | 6.8% | 81.4 | 11.7 | 24.6 | +0.17 ± 0.09 |
 | 340 x 2 seeds (119) | default | 22.1% | 2.93 | 6.3% | 84.5 | 11.5 | 31.1 | |
 | | rollout, 48 samples | 26.5% | 2.57 | 1.6% | 88.7 | 12.9 | 13.0 | see file |
+| | rollout, 96 samples | 27.5% | 2.53 | 1.9% | 89.8 | 13.0 | 13.3 | -0.40 ± 0.12 |
+| | 96 samples, share 0.22 | | 2.47 | | | | | -0.46 ± 0.12 |
 | **Holdout #1905-2409, 92 x 4 seeds (120)** | default | 19.0% | 3.29 | 10.3% | 77.8 | 10.1 | 32.2 | |
 | | **rollout, 48 samples** | **27.7%** | **2.71** | **3.3%** | **85.3** | 12.3 | 12.8 | **-0.57 ± 0.21** |
+| | rollout, 96 samples | 29.6% | 2.58 | 2.7% | 86.6 | 12.3 | 12.5 | -0.70 ± 0.22 |
+| | 96 samples, share 0.22 | 27.4% | 2.61 | 2.2% | 86.3 | 12.3 | 12.3 | -0.67 ± 0.21 |
+
+96 samples beat 48 on both sets (by 0.04 and 0.13 places; bid p99 116 ms,
+max 129 ms, still far inside the window). The live trial keeps 48 so its
+games stay comparable; if the rollout is adopted, ship 96 samples.
 
 The holdout was frozen at 08:05 PT, before any of today's screening, and
 is the first independent set on which a candidate's gain *grew* rather
