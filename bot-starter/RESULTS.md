@@ -808,6 +808,49 @@ alone for buy-timing changes; require a mechanism visible in the live
 behaviour of the top bots (public archive) and check the candidate's
 early/mid/late purchase profile in replay against theirs.**
 
+## The leaders' techniques (public archive #2000-4287) and what transferred
+
+Four analyses of 2,288 recent games (notes and scripts in
+`research_notes/Top bot strategies from match history/`, synthesis in
+`reports/Top bot strategies from match history.md`, both outside the
+repository): postturing bids on a capped ladder {8,10,12,15,20,25} and
+treats playable words as a bank (holds at 30+ coins, cashes below ~16);
+Nijello uses a low-noise per-letter schedule, a fit bonus, a late ramp
+that ends all-in, and plays a held 7+ only when **reward >= 28.3 + 0.63 x
+balance** (89% of its 8+ words grew from a held 7); Chinese Dante plays
+words exactly like us but bids 20/25 on early 3-5 point consonants and
+hard on completers. All three win 31-36% of the auctions for a letter
+that completes a 7 on their rack; we win 14.7%.
+
+Replay screens on the live configuration (`futureCountNoise 1`), fixed
+set 340 x 2 seeds (experiments 128-129):
+
+| Added rule | Place | Paired change | Wins | Score | Letters |
+|---|--:|--:|--:|--:|--:|
+| none (live) | 2.87 | | 22.4% | 85.3 | 12.0 |
+| **Nijello cash threshold 28 / 0.63** | **2.41** | **-0.46 ± 0.10** | **30.6%** | **92.2** | 11.5 |
+| threshold 22 / 0.5 | 2.52 | -0.35 ± 0.09 | 28.8% | 91.2 | 11.7 |
+| threshold 35 / 0.75 | 2.52 | -0.35 ± 0.11 | 28.7% | 91.2 | 11.2 |
+| threshold 28 / 0.63, always cash in last 8 | 2.42 | -0.45 ± 0.10 | 30.0% | 92.2 | 11.6 |
+| threshold + late all-in 6 | 2.43 | -0.44 ± 0.10 | 29.6% | 92.0 | 11.9 |
+| threshold + completion floor min(25, 0.4 x reward) | 2.87 | -0.00 ± 0.11 | 22.2% | 85.2 | 12.5 |
+| late all-in 6 alone | 2.88 | +0.01 ± 0.02 | 22.5% | 84.9 | 12.2 |
+| completion floor 20 | 3.19 | +0.32 ± 0.10 | 17.2% | 80.9 | 12.1 |
+| Dante consonant floors 20/25 (+ cheap cap 12) | 3.23-3.25 | +0.36 to +0.38 | 18-19% | 79-80 | 10.8 |
+| all Dante rules (+ late all-in) | 3.35-3.36 | +0.48 to +0.49 | 17% | 78 | 11.1-11.3 |
+
+Holdout #1905-2409 (92 x 4 seeds): live 3.14 / 19.6% / 79.7; **threshold
+28 / 0.63: 2.88 / 23.4% / 83.0**; 22 / 0.5: 2.92; 35 / 0.75: 2.95; with
+late all-in 2.91. The threshold is the first candidate today whose gain
+does not come from buying more letters (it buys 0.5 fewer), so it cannot
+be the replay's early-buying bias that reversed the two earlier
+candidates live. Bidding harder on completers, the analyses' top pick,
+cancels it: once 7s are held, many letters complete a better 7 and the
+floor overpays for them. Two bugs found by the synthesis are fixed
+(completer = beats the rack's own best 7; late all-in only on a real
+gain). Live trial 5 (from #8286): A = live, B = threshold 28 / 0.63.
+Raw: `sim/experiments/128-*`, `129-*`, duels `130-*`.
+
 ### Experiment 123: the rollout in tournament formats — **catastrophic in duels**
 
 `sim/compare.ts`, 200 matches per cell, default vs the live B (rollout,
