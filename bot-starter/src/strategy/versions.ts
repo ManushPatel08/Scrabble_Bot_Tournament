@@ -63,6 +63,8 @@ const COMMON: Params = {
   cashBelow: 0,
   cashLate: 0,
   futureAffordable: 0,
+  hold7Ext: 0,
+  hold7MinLeft: 6,
   taxShade: 1,
   taxRatio: 0.75,
   bidJitter: 0,

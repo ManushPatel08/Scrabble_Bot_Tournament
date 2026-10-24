@@ -320,6 +320,25 @@ export class Agent implements Policy {
     return Math.max(0, Math.round((this.p.futureAffordable * balance) / Math.max(1, this.medianPrice())));
   }
 
+  /** Unseen tiles that would give the rack an 8+ letter word (per-rack cache). */
+  private extendCache: { key: string; bag: number; n: number } | null = null;
+
+  extendingTiles(rack: Counts): number {
+    const key = rackKey(rack);
+    if (this.extendCache && this.extendCache.key === key && this.extendCache.bag === this.t.bagTotal) return this.extendCache.n;
+    const whole = rack.slice();
+    let n = 0;
+    for (let c = 0; c < N_LETTERS; c++) {
+      const left = this.t.unseen[c]!;
+      if (left <= 0) continue;
+      whole[c]!++;
+      if (this.idx.bestRewardSig(whole, 8) !== -1) n += left;
+      whole[c]!--;
+    }
+    this.extendCache = { key, bag: this.t.bagTotal, n };
+    return n;
+  }
+
   /** Per-rack cache of letterUsefulness(). */
   private usefulCache: { key: string; u: number[] } | null = null;
 
@@ -570,6 +589,12 @@ export class Agent implements Policy {
     for (;;) {
       let s = this.idx.bestRewardSig(rack, this.p.autoPlayLen);
       if (s === -1) break;
+      // hold7Ext: keep a 7-letter word when enough unseen tiles would grow it
+      // (with the rest of the rack) into an 8+ letter word, there is time for
+      // one to arrive, and we are not short of money. The public leaders'
+      // extra points over us are almost entirely 8+ letter words.
+      if (this.p.hold7Ext > 0 && this.idx.sigLen[s] === 7 && t.usableFutureAuctions() >= this.p.hold7MinLeft &&
+          balances[me]! >= this.p.cashBelow && this.extendingTiles(rack) >= this.p.hold7Ext) break;
       if (this.p.wordLookahead > 0) {
         const choices = this.idx.playable(rack, this.p.autoPlayLen)
           .sort((a, b) => this.idx.sigReward[b]! - this.idx.sigReward[a]!).slice(0, 8);

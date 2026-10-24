@@ -214,3 +214,19 @@ test("cashBelow cashes short words only when nearly broke; futureAffordable caps
   assert.ok(rich.futureCount() >= 4);
   assert.equal(decide({ futureAffordable: 0 }, 5).a.futureCount(), decide({}, 5).a.futureCount());
 });
+
+test("hold7Ext keeps a 7-letter word only with many extensions, time left and money", () => {
+  const idx = new WordIndex(["RETAINS", "GANISTER", "NITRATES", "JO"]);
+  const words = (params: Record<string, number>, balance: number, bagTotal = 40) => {
+    const a = new Agent({ ...FINAL, ...params, samples: 8 }, "hold7", idx);
+    start(a, 6, [null, null, null, null, null, null], "Vickrey");
+    return a.onAuction({ ...view(6, "Q"), rack: countsOf("RETAINS"), bagTotal, balances: [balance, 100, 100, 100, 100, 100] }).words;
+  };
+  // One-tile extensions: G (3 unseen) and T (6 unseen, none dealt to us) = 9 tiles.
+  assert.deepEqual(words({}, 100), ["RETAINS"]);
+  assert.deepEqual(words({ hold7Ext: 5 }, 100), []);
+  assert.deepEqual(words({ hold7Ext: 10 }, 100), ["RETAINS"]);
+  assert.deepEqual(words({ hold7Ext: 5 }, 100, 3), ["RETAINS"]); // too late for an 8 to arrive
+  assert.deepEqual(words({ hold7Ext: 5, cashBelow: 12 }, 5), ["RETAINS"]); // broke: cash it
+  assert.deepEqual(words({ hold7Ext: 5 }, 100, 0), ["RETAINS"]); // final auction: play out
+});

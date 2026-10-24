@@ -187,6 +187,10 @@ export interface Params {
   cashLate: number;
   /** Cap Monte Carlo future letters at this multiple of balance / median price (0 = off). */
   futureAffordable: number;
+  /** Hold a 7-letter word while at least this many unseen tiles would extend it to 8+ (0 = off). */
+  hold7Ext: number;
+  /** hold7Ext applies only with at least this many usable auctions left. */
+  hold7MinLeft: number;
 
   // --- opponent modeling ---
   /**
@@ -275,6 +279,8 @@ export const DEFAULT_PARAMS: Params = {
   cashBelow: 0,
   cashLate: 0,
   futureAffordable: 0,
+  hold7Ext: 0,
+  hold7MinLeft: 6,
   taxShade: 1,
   taxRatio: 0.75,
   bidJitter: 0,

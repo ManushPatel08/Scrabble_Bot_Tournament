@@ -501,6 +501,27 @@ larger changes, so the trial slot was given to the larger measured effect.
 Raw: `sim/experiments/109-liquidity-screen.md`,
 `sim/experiments/110-liquidity-confirm.md`.
 
+### Experiment 111: hold a 7-letter word for an 8 — no effect, rejected
+
+The leaders' edge is 8+ letter words, and 76 of our last 131 7-letter
+plays had 16+ unseen tiles that would have extended the word (with the
+rest of the rack) to 8+. `hold7Ext` holds the 7 while that count is at
+least the threshold, 6+ usable auctions remain, and the balance is not
+below `cashBelow` (so the cash-when-broke rule still fires). 340 x 2:
+
+| Variant | Wins | Place | Score | Letters | Paired vs default |
+|---|--:|--:|--:|--:|--:|
+| default | 22.1% | 2.93 | 84.5 | 11.5 | |
+| B (cashBelow 12 + afford 1) | 25.4% | 2.76 | 86.3 | 12.3 | -0.17 ± 0.10 |
+| B + hold 16 / 24 / 32 | 25.4 / 26.0 / 25.1% | 2.76 / 2.78 / 2.77 | 86.3 / 86.2 / 86.3 | 12.0-12.2 | -0.17 / -0.14 / -0.15 |
+| hold 24 alone | 21.8% | 2.93 | 84.5 | 11.4 | 0.00 ± 0.05 |
+
+Holding delays the 7's cash by about as much as the occasional 8 gains;
+the net is zero at every threshold. The leaders' 8-letter words are not
+reachable by holding our 7s. They come from buying the extra letters
+first (14 vs 11 per match), which the liquidity candidate addresses.
+Kept off. Raw: `sim/experiments/111-hold7-screen.md`.
+
 ## Live opponents and the tournament phases (2026-10-23)
 
 **The strongest live opponent.** "bot" (id 7) beat LetterShark in 3 of
