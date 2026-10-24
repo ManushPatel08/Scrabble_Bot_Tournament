@@ -40,7 +40,18 @@ valuation, RESULTS.md "Rollout valuation": replay 2.57 vs 2.93, holdout
 arm, or >= 0.6 worse at 15, stops B early; otherwise the 25/45 gates.
 Adoption means shipping the B parameters into DEFAULT_PARAMS and
 VERSIONS.final (the user has asked for continuous upgrades; confirm the
-tournament default with them before 21:00). Bot 86's log
+tournament default with them before 21:00). At the 25-game gate (11:41
+PT) B was +0.21 places with fewer wins (4 vs 7), so the trial continues
+to 45 (adopt at >= 0.25 better with noninferior wins and score).
+
+**Tournament safety (experiment 123):** the rollout loses 2-bot duels by
+about 110 points in the simulator (its prices and win share are
+six-player quantities). `rolloutMinPlayers` (default 4, committed 11:45
+PT) disables it below four active players; the running live process
+predates that commit but only plays six-player lobby games. Any adopted
+configuration must include the gate; verify `sim/experiments/125-*`
+shows the gated rollout equal to the default in duels before shipping.
+Bot 86's log
 (`logs/retired-86-live.log` = `logs/manush3-live.log`) holds three
 trials, scored only with `--since`: trial 1 #2332-2563 (B =
 futureCountNoise 1) inconclusive at 21 per arm, A 3.24 / 24% / 79 vs
