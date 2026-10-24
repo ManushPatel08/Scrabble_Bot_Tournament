@@ -83,6 +83,10 @@ export class FakeServer implements LiveConn {
       currentRound: 0,
       bagTotal: 98,
       auctionType: { tag: auctionType },
+      // The published module also keeps the match's settings here; the
+      // adapter prefers the window on each auction row, which both schemas have.
+      auctionDurationMs: 1000n,
+      startingRackSize: 5,
     };
   }
 
@@ -148,8 +152,7 @@ export class FakeServer implements LiveConn {
         botId: this.meBotId,
         swissPoints: 0,
         eliminated: false,
-        roundRobinWins: 0,
-        roundRobinTotalScore: 0n,
+        totalScore: 0n,
       });
       return Promise.resolve();
     },

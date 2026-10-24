@@ -17,12 +17,20 @@ param(
   [Parameter(Mandatory = $true)][string]$BotName,
   [switch]$NoLobby,         # don't join casual lobbies (tournaments still on)
   [switch]$NoTournament,    # don't register for tournaments
-  [switch]$Quiet            # one log line per match instead of per auction
+  [switch]$Quiet,           # one log line per match instead of per auction
+  [switch]$FromClipboard    # take the token from the clipboard (npm run get-token) and clear it
 )
 
 $ErrorActionPreference = "Stop"
 Set-Location -Path $PSScriptRoot
 
+if ($FromClipboard) {
+  # Straight from the clipboard into this process's environment: never shown.
+  $clip = Get-Clipboard -Raw
+  if ($clip) { $env:BOT_TOKEN = $clip.Trim() }
+  Remove-Variable clip
+  Set-Clipboard -Value " "
+}
 if (-not $env:BOT_TOKEN) {
   $secure = Read-Host "Paste the token for '$BotName' (input hidden)" -AsSecureString
   $env:BOT_TOKEN = [System.Net.NetworkCredential]::new("", $secure).Password

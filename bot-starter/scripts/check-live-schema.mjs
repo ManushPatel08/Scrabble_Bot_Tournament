@@ -149,7 +149,8 @@ function check(schema) {
   const needed = { submit_bid: ["auction_id", "amount"], submit_word: ["match_id", "word"], join_lobby: [], register_for_tournament: ["tournament_id"] };
   for (const [r, args] of Object.entries(needed)) {
     const lr = schema.reducers.find((x) => x.name === r);
-    const got = lr ? lr.params.elements.map((e) => nm(e.name)) : null;
+    // The TypeScript module names parameters in camelCase; only the order matters on the wire.
+    const got = lr ? lr.params.elements.map((e) => snake(nm(e.name))) : null;
     if (!got || got.join(",") !== args.join(",")) {
       bad++;
       console.log(`MISMATCH reducer ${r}: live ${got ? `(${got.join(", ")})` : "missing"}, bot expects (${args.join(", ")})`);

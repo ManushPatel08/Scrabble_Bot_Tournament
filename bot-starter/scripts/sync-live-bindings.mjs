@@ -1,33 +1,31 @@
-// Patches src/module_bindings (generated from the published module source)
-// to the schema the live `scrabblebot` database actually runs. The live
-// module is newer than any published commit: it dropped two match_state
-// columns, added round-robin/finals columns to the tournament tables and
-// reordered the tournament enums. The SDK decodes rows positionally, so
-// without this the bot can't read match_state at all.
+// Keeps src/module_bindings matched to the schema the live `scrabblebot`
+// database runs. The SDK decodes rows by column position, so a binding that
+// is off by one column can't read that table at all.
 //
-//   node scripts/sync-live-bindings.mjs     (idempotent; re-run after `npm run generate`)
-//   node scripts/check-live-schema.mjs      (verifies the result against the server)
+// The server has run two schemas:
+//   - "calhacks": the published module (upstream 3064b36: Swiss rounds, a
+//     cut, elimination, a best-of-3 final). `npm run generate` and the
+//     checked-in web bindings produce this one.
+//   - "roundrobin": an unpublished module the database ran until it was
+//     reset on 2026-10-23 (round robin plus finals; RULES.md).
+// This script asks the server which one it runs (public schema, read-only)
+// and patches the bindings toward it, in either direction.
 //
-// Only the files below change; everything else in the bindings already matches.
+//   node scripts/sync-live-bindings.mjs [--to calhacks|roundrobin]   (idempotent)
+//   node scripts/check-live-schema.mjs                               (verifies the result)
 
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "src", "module_bindings");
-let changed = 0;
-
-/** Replace `from` with `to` in a file unless `to` is already there. */
-function patch(file, from, to) {
-  const p = path.join(dir, file);
-  const src = fs.readFileSync(p, "utf8").replace(/\r\n/g, "\n");
-  if (src.includes(to)) return;
-  if (!src.includes(from)) throw new Error(`${file}: expected text not found:\n${from}`);
-  fs.writeFileSync(p, src.replace(from, to));
-  changed++;
+/** [file, calhacks text, roundrobin text] */
+const PATCHES = [];
+function patch(file, calhacks, roundrobin) {
+  PATCHES.push([file, calhacks, roundrobin]);
 }
 
-// match_state: live has no auction_duration_ms / starting_rack_size.
+// match_state: the roundrobin schema has no auction_duration_ms / starting_rack_size.
 patch(
   "match_state_table.ts",
   `  endedAt: __t.option(__t.timestamp()).name("ended_at"),
@@ -150,4 +148,46 @@ patch(
 });`,
 );
 
-console.log(changed ? `patched ${changed} binding section(s)` : "bindings already synced");
+// ---------------------------------------------------------------- apply
+
+const arg = (n) => {
+  const i = process.argv.indexOf(`--${n}`);
+  return i === -1 ? undefined : process.argv[i + 1];
+};
+
+/** Which schema the server runs, from its public schema; null if unreachable. */
+async function liveVariant() {
+  const host = process.env.STDB_HOST ?? "https://maincloud.spacetimedb.com";
+  const db = process.env.STDB_DB ?? "scrabblebot";
+  try {
+    const res = await fetch(`${host}/v1/database/${db}/schema?version=9`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const schema = await res.json();
+    const entry = schema.tables.find((t) => t.name === "tournament_entry");
+    const cols = schema.typespace.types[entry.product_type_ref].Product.elements.map((e) => e.name?.some ?? e.name);
+    return cols.includes("round_robin_wins") ? "roundrobin" : "calhacks";
+  } catch (e) {
+    console.error(`sync skipped: couldn't fetch the ${db} schema from ${host} (${e.message})`);
+    return null;
+  }
+}
+
+const target = arg("to") ?? (await liveVariant());
+if (target === null) {
+  process.exitCode = 2;
+} else {
+  if (target !== "calhacks" && target !== "roundrobin") throw new Error(`unknown schema ${target}`);
+  let changed = 0;
+  for (const [file, calhacks, roundrobin] of PATCHES) {
+    const [from, to] = target === "roundrobin" ? [calhacks, roundrobin] : [roundrobin, calhacks];
+    const p = path.join(dir, file);
+    const src = fs.readFileSync(p, "utf8").replace(/\r\n/g, "\n");
+    if (src.includes(to)) continue;
+    if (!src.includes(from)) throw new Error(`${file}: expected text not found:\n${from}`);
+    fs.writeFileSync(p, src.replace(from, to));
+    changed++;
+  }
+  console.log(
+    changed ? `patched ${changed} binding section(s) to the ${target} schema` : `bindings already match the ${target} schema`,
+  );
+}
