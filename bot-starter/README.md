@@ -72,7 +72,7 @@ node sim/trace.ts 3 Vickrey                      # round-by-round trace of one m
 node sim/compare.ts --variants '[{"label":"a"},{"label":"b","mu0":0.3}]' --fields self-v,league-f
 node sim/latency.ts 60                           # decision latency with precompute on
 node sim/threats.ts --only shadow,slow,mixed      # final vs 5 copies of an adversary, slow network, mixed pool
-npm test                                         # unit tests (66)
+npm test                                         # unit tests (67)
 npm run typecheck                                # tsc over src/, sim/, test/, scripts/ (needs npm install + bindings)
 ```
 
@@ -188,10 +188,19 @@ What the bot does by itself:
   subscribing to all of it crashed Node with an out-of-memory error. It
   subscribes to the small tables first, then only to its own slice: its rack,
   entries and lobbies, and the rows of its own matches, joined through
-  `match_participant` (`src/live/queries.ts`). For a new bot that loads in
-  about 0.15 s with a 15 MB heap; the heaviest existing bot (783 matches)
-  loads in 0.6 s with 117 MB. `npx tsx scripts/sub-probe.ts <bot id>`
-  measures it (read-only, anonymous).
+  `match_participant` (`src/live/queries.ts`). Each match's participants
+  get a plain `match_id = X` subscription of their own, opened at match
+  start: a self-join never delivered other bots' score updates (RULES.md
+  S1). For a new bot that loads in about 0.15 s with a 15 MB heap; the
+  heaviest bot before the reset (783 matches) loaded in 0.6 s with 117 MB.
+  `npx tsx scripts/sub-probe.ts <bot id>` measures it (read-only,
+  anonymous).
+- **Timing:** each decision takes 5–25 ms. The precompute for the next
+  round runs in 15 ms slices that yield to incoming messages and is dropped
+  as soon as an auction arrives, so it can't delay a bid. Each round's log
+  line shows how long the auction's message waited (`waited N ms`); over
+  150 ms is flagged `SLOW` even with `LOG_ROUNDS=0`. Don't run the
+  simulator on the same machine during the tournament.
 - **Resilience:**
   - It reconnects with backoff after a disconnect.
   - If it restarts mid-match, it replays the match's public history.
@@ -199,6 +208,14 @@ What the bot does by itself:
   - If a bid relies on rewards from words played the same round, a bid it
     can already afford is placed first, so a failed word can't lose the
     auction.
+
+**Lobby play.** `node scripts/lobby-report.mjs --bot <name>` prints a bot's
+live record from the public tables: wins, places, scores and head-to-head
+margins against every bot it met. Lobby games feed the public
+`auction_top_bid_archive` (RULES.md S4), which shows every winning bid, so
+other teams can study a bot's bidding from them. Play enough lobby games to
+check the bot, then run it with `-NoLobby` until the tournament: it stays
+connected and still registers when registration opens.
 
 Notes:
 - **The token** is read only from `BOT_TOKEN`. It is never written to disk

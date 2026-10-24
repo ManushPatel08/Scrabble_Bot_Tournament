@@ -18,7 +18,8 @@ param(
   [switch]$NoLobby,         # don't join casual lobbies (tournaments still on)
   [switch]$NoTournament,    # don't register for tournaments
   [switch]$Quiet,           # one log line per match instead of per auction
-  [switch]$FromClipboard    # take the token from the clipboard (npm run get-token) and clear it
+  [switch]$FromClipboard,   # take the token from the clipboard (npm run get-token) and clear it
+  [string]$LogFile          # also append timestamped log lines to this file (never the token)
 )
 
 $ErrorActionPreference = "Stop"
@@ -45,13 +46,14 @@ $env:BOT_NAME = $BotName
 if ($NoLobby) { $env:AUTO_LOBBY = "0" }
 if ($NoTournament) { $env:AUTO_TOURNAMENT = "0" }
 if ($Quiet) { $env:LOG_ROUNDS = "0" }
+if ($LogFile) { $env:LOG_FILE = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($LogFile) }
 
 if (-not (Test-Path "node_modules")) {
   Write-Host "Installing dependencies (first run)..."
   npm install
 }
 
-# The live module is newer than its published source, and the SDK decodes
+# The live server has switched modules before (RULES.md), and the SDK decodes
 # rows by column position, so check the bindings against the live schema
 # (read-only HTTP) and patch them if the server has drifted.
 node scripts/check-live-schema.mjs

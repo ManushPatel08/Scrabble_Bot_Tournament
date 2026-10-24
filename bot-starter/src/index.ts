@@ -14,6 +14,7 @@
 // (tested against a fake server in test/live.test.ts), which runs one Agent
 // (src/strategy/agent.ts) per match.
 
+import fs from "node:fs";
 import { DbConnection, type ErrorContext } from "./module_bindings/index.js";
 import { Identity } from "spacetimedb";
 import { sharedIndex } from "./game/dictionary.ts";
@@ -31,7 +32,35 @@ if (!TOKEN) {
   process.exit(2); // configuration error: run.ps1 doesn't restart on code 2
 }
 
-const log = (...a: unknown[]) => console.log(`[${BOT_NAME}]`, ...a);
+/** LOG_FILE: also append each log line, timestamped, to this file (the token is never logged). */
+const LOG_FILE = process.env.LOG_FILE;
+function toFile(line: string) {
+  if (!LOG_FILE) return;
+  try {
+    fs.appendFileSync(LOG_FILE, `${new Date().toISOString()} ${line}
+`);
+  } catch {
+    // a full disk or locked file must never stop the bot
+  }
+}
+const fmt = (a: unknown[]) =>
+  a
+    .map((x) =>
+      typeof x === "string"
+        ? x
+        : x instanceof Error
+          ? x.message
+          : JSON.stringify(x, (_k, v) => (typeof v === "bigint" ? v.toString() : v)),
+    )
+    .join(" ");
+const log = (...a: unknown[]) => {
+  console.log(`[${BOT_NAME}]`, ...a);
+  toFile(`[${BOT_NAME}] ${fmt(a)}`);
+};
+const logError = (...a: unknown[]) => {
+  console.error(`[${BOT_NAME}]`, ...a);
+  toFile(`[${BOT_NAME}] ERROR ${fmt(a)}`);
+};
 const index = sharedIndex(); // build the dictionary index before connecting (~0.3 s)
 let bot: LiveBot | null = null;
 let tickTimer: ReturnType<typeof setInterval> | null = null;
@@ -47,7 +76,7 @@ let matchSubs = new Map<bigint, { ready: boolean; handle: { unsubscribe(): void 
  * and exits with 127 instead.
  */
 function fatal(conn: DbConnection, code: number, ...msg: unknown[]) {
-  console.error(`[${BOT_NAME}]`, ...msg);
+  logError(...msg);
   stopping = true;
   process.exitCode = code;
   if (tickTimer) clearInterval(tickTimer);
@@ -154,7 +183,7 @@ function reconnect(why: string) {
   if (stopping) return;
   if (tickTimer) clearInterval(tickTimer);
   tickTimer = null;
-  console.error(`[${BOT_NAME}] ${why}; reconnecting in ${retryMs / 1000}s`);
+  logError(`${why}; reconnecting in ${retryMs / 1000}s`);
   setTimeout(main, retryMs);
   retryMs = Math.min(30_000, retryMs * 2);
 }

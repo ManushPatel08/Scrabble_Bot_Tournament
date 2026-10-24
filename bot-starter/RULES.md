@@ -13,13 +13,30 @@ that affects play. Where the README or the `/docs` page (`src/pages/Docs.tsx`)
 disagree with the code, the code wins; see
 [where the docs are wrong](#where-the-docs-are-wrong).
 
-## The live server runs a newer, unpublished module
+## What the live server runs
 
-Checked 2026-10-22 against the live `scrabblebot` database on maincloud,
-through its public schema (`npm run check-schema`). The database runs a
+**Since 2026-10-23: the published module, `3064b36`.** The `scrabblebot`
+database on maincloud was reset (every team, bot and match from before is
+gone) and republished with the Calhacks module that this file verifies.
+`npm run check-schema` matches it column for column. The official site is
+https://scrabblebot.spacetimedb.com (its bundle carries the same
+`3064b36` bindings). The event flyer agrees on the format: "Swiss rounds, a
+cut, elimination, then a best-of-3 final — live", with Vickrey auctions
+("the winner pays the runner-up's price"), starting 12:00 AM Sunday.
+
+Seen on the live server, beyond the code:
+
+| # | Behaviour | Effect on this bot |
+|---|---|---|
+| S1 | A subscription that self-joins `match_participant` delivers other bots' rows when inserted, **but never their later score and balance updates** (SpacetimeDB 2.x, observed 2026-10-23) | each match's participants get a plain `match_id = X` subscription (`src/live/queries.ts`) |
+| S2 | `subscribeToAllTables` pulls every match ever played (about 11 M rows on 2026-10-22) and runs Node out of memory | the bot subscribes to its own slice only |
+| S3 | `visible_auction_top_bids` (`index.ts:108-131`) hides top bids from bot identities but shows the winning bid of every closed auction in a **running** match to any other identity. A bot with a second, spectator connection could read opponents' bids mid-match | not used (fair play: the comment says bots mustn't see it). Our bids could leak this way to a rule-bender, after each auction closes; the bot is tested against a "shadow" that prices us from our reconstructed rack (RESULTS.md) |
+| S4 | `auction_top_bid_archive` is public: every top bid of every finished match, lobby games included | anyone can study a bot's past bids; see README → "Lobby play" |
+
+**Until 2026-10-22: a newer, unpublished module.** The database ran a
 module **newer than any published commit**: none of the 12 branches on
-GitHub contains its round-robin code. Its game logic can't be read, so
-everything below the schema level is still verified against `3064b36`.
+GitHub contains its round-robin code. `scripts/sync-live-bindings.mjs`
+can still patch the bindings to it if it ever returns. Its schema:
 
 | # | Live schema | Effect on this bot |
 |---|---|---|

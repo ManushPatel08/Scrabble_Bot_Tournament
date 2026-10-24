@@ -4,3 +4,5 @@ src/module_bindings/
 # Bot tokens must never be committed (the client never writes them, but the
 # stock starter used to).
 .token-*
+# Live bot logs (run.ps1 -LogFile logs/...)
+logs/

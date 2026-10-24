@@ -122,7 +122,7 @@ export function merge(into: BatchResult, b: BatchResult): BatchResult {
 }
 
 /** Runs a batch split across worker threads. */
-export async function runBatch(spec: BatchSpec, workers = Math.max(1, os.cpus().length - 2)): Promise<BatchResult> {
+export async function runBatch(spec: BatchSpec, workers = Number(process.env.SIM_WORKERS) || Math.max(1, os.cpus().length - 2)): Promise<BatchResult> {
   const k = Math.min(workers, spec.matches);
   if (k <= 1) return runSlice(spec, 0, spec.matches);
   const per = Math.ceil(spec.matches / k);

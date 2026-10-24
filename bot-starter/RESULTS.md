@@ -23,8 +23,33 @@ jitter. See [Tournament module re-validation](#tournament-module-re-validation).
 | Highest mean score and win rate against the baseline field, 1,000 matches, both modes | ✅ **Vickrey:** 98.2% wins, mean 183.2 (next best: overbidder, 1.9% and 56.6). **First-price:** 99.4% wins, mean 152.9 (next: hoarder 0.5% wins; overbidder 46.9 mean) |
 | Self-play against 5 earlier versions wins > 1/6 | ✅ Against the 5 most recent (v3–v7): **Vickrey 29.9%** (1,000 matches), **first-price 29.3%** (300). v7 is next at 26.1% / 27.0% |
 | decideBid / chooseWord p99 < 100 ms on the largest racks | ✅ With the live precompute on: decideBid p99 28 ms (32 ms on the largest 5% of racks); chooseWord p99 0.05 ms |
-| `BOT_NAME=… BOT_TOKEN=… npm start` plays a full match | ⏳ The user runs this (or `run.ps1`). Prepared: `tsc` passes against SDK 2.12.0 and the 2.12 bindings; the client loads and refuses to run without a token; and the live adapter plays full matches, re-registers for tournaments and survives restarts against a fake server that follows the module (`test/live.test.ts`) |
+| `BOT_NAME=… BOT_TOKEN=… npm start` plays a full match | ✅ Live on the event server as **LetterShark** (Team Manush) since 2026-10-23, through `run.ps1`: it won all of its first 10 open-lobby matches, mean score 277 (see [Live lobby record](#live-lobby-record)). The first matches exposed two client bugs that the fake server couldn't (late bids, stale opponent scores), both fixed and re-verified live |
 | README section on the simulator, tuner and live bot | ✅ [README.md](README.md) |
+
+## Live lobby record
+
+`node scripts/lobby-report.mjs --bot LetterShark` (public tables only).
+Open lobbies are always Vickrey and are padded with the module's sims. The
+only other human bot online on 2026-10-23 was "bot" (id 7).
+
+| Date | Matches | Wins | Mean score | Mean margin over "bot" | Notes |
+|---|---:|---:|---:|---:|---|
+| 2026-10-23 (first 10) | 10 | 10 | 277 | +152 (6 meetings) | matches 62–67 on the first build, 68–71 after the fixes below |
+
+What the first live matches found, and the fixes:
+
+1. **Bids landing after the auction closed.** Every failed bid followed a
+   precomputed decision: the between-round precompute ran as one block
+   (p99 ~0.4 s idle, over 1 s with the simulator running), and the next
+   auction's message waited behind it. The precompute now runs in 15 ms
+   slices that yield to I/O and is dropped when an auction arrives. With
+   16 simulator workers and the test suite running on the same machine,
+   matches 69–71 had no late bids and no queue wait over 150 ms.
+2. **Opponents' scores frozen at their first value.** A self-join
+   subscription on `match_participant` never delivered other bots'
+   updates (RULES.md S1), so the leader tax and every score-aware rule saw
+   0s. Each match's participants now have their own subscription; the
+   end-of-match summaries show real opponent scores again.
 
 ## Tournament module re-validation
 
