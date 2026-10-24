@@ -866,6 +866,30 @@ Better in every field, by a wide margin in duels and first-price, so it
 needs no player-count gate. This is the first candidate today on which
 the replay, the holdout and the simulator all agree.
 
+### Experiments 131-132: cash a word when nearly broke, on top of the threshold
+
+The user spotted a live game where the bot held AJNE (JANE, 16 points)
+with 6 coins near the end: the shipped policy never cashes words under 7
+letters before the final auction, so those coins only arrive when they can
+buy nothing. Nijello and postturing cash their best word only when nearly
+broke (median balance 4-6, mostly after auction 60). Narrow version:
+`cashTiming 1, cashMinLen 4, cashBelow 8` (cash a 4+ letter word only
+below 8 coins), stacked on the threshold:
+
+| Added to threshold 28 / 0.63 | Fixed 340 x 2 | Holdout 92 x 4 |
+|---|---|---|
+| broke-cash 4+ below 8 | **-0.074 ± 0.029** (33.2% wins, 93.8 score) | -0.065 ± 0.035 (25.3% wins) |
+| broke-cash 4+ below 12 | -0.091 ± 0.039 (33.7%, 94.0) | -0.117 ± 0.050 (26.9%) |
+| broke-cash 3+ below 8 | -0.069 ± 0.027 | -0.065 ± 0.035 |
+
+Simulator, 120 per field (win / margin): duel vs the default 68.3% / +32
+-> **74.2% / +42**; first-price duel 76.7% -> 77.5%; strong-bot table
+60.8% -> 65.8%; human-like pool 51.7% -> 53.3%. Added to the Ultra
+strategy (`scripts/ultra-params.json`) at the simulator-verified setting
+(below 8). This morning's losing live variant cashed 2-letter words below
+12 coins and also changed every valuation (`futureAffordable`); this one
+isolates the cash rule.
+
 ### Experiment 123: the rollout in tournament formats — **catastrophic in duels**
 
 `sim/compare.ts`, 200 matches per cell, default vs the live B (rollout,

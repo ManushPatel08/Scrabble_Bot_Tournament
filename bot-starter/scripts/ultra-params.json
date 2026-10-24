@@ -1,1 +1,1 @@
-{ "futureCountNoise": 1, "cashThreshA": 28, "cashThreshB": 0.63 }
+{ "futureCountNoise": 1, "cashThreshA": 28, "cashThreshB": 0.63, "cashTiming": 1, "cashMinLen": 4, "cashBelow": 8 }
