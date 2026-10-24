@@ -725,6 +725,15 @@ The usual gates apply: 25 per arm, adopt at >= 0.4 better with
 noninferior wins and score; a replay effect of 0.4-0.6 is the first one
 today that the live gate can actually resolve.
 
+Tuning on top of the rollout (experiment 121, 340 x 1 seed, paired
+against the running B = 48 samples, share 0.18): share 0.22 -0.05 ± 0.10,
+share 0.25 -0.04 ± 0.10, prices x0.9 -0.05 ± 0.11, no late cash -0.03 ±
+0.08, cash below 12 +0.02 ± 0.09, rack cap 10 +0.04 ± 0.07; shading has
+no effect because the rollout returns its bid before the shading step.
+The valuation is robust to these knobs; none is 0.15 better, so none
+replaces the live B. Experiment 122 (running) tests price adaptation,
+the live cash-when-broke rule, 96 samples and pacing.
+
 The word rules alone are harmful; the rollout valuation is what carries
 the gain, and it needs the full horizon and enough samples (the bid is
 the zero crossing of a noisy curve). The profile of the result, 13
