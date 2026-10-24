@@ -198,6 +198,16 @@ export interface Params {
   finalPackWindow: number;
   /** Play the rack's best word set whenever it holds at least this many tiles (0 = off). */
   rackCap: number;
+  /**
+   * Foundation floor (coins, 0 = off): in the first earlyFloorFrac of the
+   * match, while the rack holds fewer than earlyFloorRack tiles and no
+   * auto-play word, bid at least this on any letter with positive value.
+   * Lambi Lambiii (public field, #2300+) wins 5.2 letters in the first
+   * third at about 20 each; we win 2.7.
+   */
+  earlyFloor: number;
+  earlyFloorRack: number;
+  earlyFloorFrac: number;
   /** Hold a 7-letter word while at least this many unseen tiles would extend it to 8+ (0 = off). */
   hold7Ext: number;
   /** hold7Ext applies only with at least this many usable auctions left. */
@@ -296,6 +306,9 @@ export const DEFAULT_PARAMS: Params = {
   lateCashWindow: 12,
   finalPackWindow: 0,
   rackCap: 0,
+  earlyFloor: 0,
+  earlyFloorRack: 11,
+  earlyFloorFrac: 0.34,
   hold7Ext: 0,
   hold7MinLeft: 6,
   taxShade: 1,

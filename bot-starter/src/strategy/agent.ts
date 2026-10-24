@@ -741,6 +741,11 @@ export class Agent implements Policy {
         const floor = Math.min(Math.round(target), budget, balance);
         if (floor > bid) bid = floor;
       }
+      if (this.p.earlyFloor > 0 && value > 0 && !t.isFinalAuction() && frac > 1 - this.p.earlyFloorFrac) {
+        const tiles = rack.reduce((a, b) => a + b, 0);
+        if (tiles < this.p.earlyFloorRack && this.idx.bestRewardSig(rack, this.p.autoPlayLen) === -1)
+          bid = Math.max(bid, Math.min(this.p.earlyFloor, balance));
+      }
       const taxFrac = t.activeN() <= this.p.duelMaxN && this.p.leaderTaxDuel > 0 ? this.p.leaderTaxDuel : this.p.leaderTax;
       if (taxFrac > 0 && !t.isFinalAuction() && t.bagTotal >= 3) {
         let leader = -1;

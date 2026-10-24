@@ -604,6 +604,45 @@ neutral, Lambi's live evidence is strong (3.0 to 2.1 over 40 games), and
 the replay cannot see what rivals do with the cheap letters we stop
 taking. All switches stay off in the shipped defaults.
 
+### The recent field (577 all-human 6-seat matches since #2300)
+
+Public data, current bot versions. Long words are **identical** between
+Lambi Lambiii and us (7-letter 1.33 vs 1.34 per match, 8+ 0.19 vs 0.19),
+and so are points per letter bought (7.5 vs 7.4). The 16-point gap is
+volume and timing:
+
+| Player | Place | Score | Letters e/m/l | Winning bid e/m/l | Short-word pts cashed mid-match | Points held to the final partition | Unspent |
+|---|--:|--:|---|---|--:|--:|--:|
+| Lambi Lambiii | 2.16 | 94 | 12.5 = 5.2/4.0/3.3 | 20.5/17.1/17.6 | 22.0 | 0.2 | 10 |
+| Nijello | 2.40 | 91 | 12.3 = 3.6/3.1/5.6 | 14.6/15.8/21.5 | 15.9 | 10.3 | 10 |
+| Chinese Dante | 2.47 | 90 | 12.0 = 3.5/5.3/3.1 | 19.9/16.2/17.2 | 0.9 | 13.8 | 9 |
+| LetterSharkPro | 3.31 | 78 | 10.5 = 2.7/4.6/3.3 | 18.2/17.4/18.7 | 3.1 | 13.8 | 16 |
+
+Score = coins spent + leftover − 100 (identity), so scoring more means
+spending more, which needs coins back earlier. Lambi buys 5 letters in
+the first third and refinances with 22 points of short words; Chinese
+Dante holds like us but buys 3.5 early letters. We buy 2.7.
+
+### Experiment 116: a flat early "foundation" floor — rejected decisively
+
+`earlyFloor`: in the first third, while the rack holds fewer than 11
+tiles and no 7-letter word, bid at least 18 or 22 on any letter with
+positive value; combined with the rack cap, late cash and cash-when-broke
+rules to copy Lambi's loop. 340 x 2:
+
+| Variant | Wins | Place | Score | Letters | Paired vs default |
+|---|--:|--:|--:|--:|--:|
+| default | 22.1% | 2.93 | 84.5 | 11.5 | |
+| floor 18 | 4.1% | 4.66 | 55.8 | 11.2 | +1.73 ± 0.15 |
+| floor 22 | 2.9% | 4.96 | 52.1 | 9.8 | +2.03 ± 0.15 |
+| floor 18/22 + rack cap 11 + late cash 5 (+ cash below 8) | 2.4-2.6% | 4.7-5.0 | 52-55 | 10-11.5 | +1.8 to +2.1 |
+
+A flat floor wins every contested early letter at the rivals' price and is
+broke by mid-match; the cash rules cannot refinance a rack of random
+letters. Lambi's early buying works because its valuation is selective
+(lookahead to words 1-2 letters away, capped at 60% of balance). Copying
+behaviour without the valuation behind it fails. All off.
+
 ## Live opponents and the tournament phases (2026-10-23)
 
 **The strongest live opponent.** "bot" (id 7) beat LetterShark in 3 of

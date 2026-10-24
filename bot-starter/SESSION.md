@@ -32,6 +32,14 @@ B 3.88 / 12% / 76 (0.68 worse, 4 last places). Never score the log
 without `--since`. Shipped defaults are unchanged. Consult
 `logs/runner-state.json` before every action.
 
+Trial 3 interim rule (added 09:50 PT, because B arms cost rating while
+they run): if B is at least 0.6 places worse at 15 completed per arm,
+stop it early and run the default alone; otherwise apply the 25/45 gates.
+Lesson of the day (experiments 107-116, RESULTS.md): replay gains of
+0.1-0.2 places have not transferred live, and surface copies of Lambi
+Lambiii's rules are neutral to catastrophic in our engine. Do not spend
+live-trial time on candidates below about 0.3 replay places.
+
 ## Operations
 
 - Repository: `C:\Users\Manush\Desktop\Scrabblebot\scrabblebot`, branch
