@@ -643,6 +643,36 @@ letters. Lambi's early buying works because its valuation is selective
 (lookahead to words 1-2 letters away, capped at 60% of balance). Copying
 behaviour without the valuation behind it fails. All off.
 
+### Experiment 117: selective foundation value — rejected
+
+`foundationWeight` adds points, under the same early/small-rack
+conditions, in proportion to the letter's usefulness toward 7-8 letter
+words (`letterUsefulness`, relative to the average useful letter). 340 x 2:
+weight 1 place 3.31 (+0.39 ± 0.12), weight 2 3.49 (+0.56), weight 4 3.95
+(+1.03); the rack cap changes nothing. Monotonically worse: any additive
+early value makes the bot overpay for letters whose completions the Monte
+Carlo already prices. Off.
+
+### Live trial 3 (shadeLow 0.8) and the fourth registration (09:55 PT)
+
+Trial 3 reached 9 per arm when the user asked for a new bot: A 3.33 / 0
+wins / 81, B 3.89 / 1 win / 77. Inconclusive with a negative trend; the
+shading stays off. At the user's explicit request ("Start a new bot with
+strongest variant"), bot 86 was stopped at a match boundary (110 matches,
+17 wins, archives `logs/retired-86-*`) and **Manush4 / LetterSharkPro,
+team 89 / bot 95** was created through the normal flow. It runs
+`futureCountNoise=1` alone: replay -0.10 ± 0.08 (340 x 4) and -0.20 ±
+0.15 (31 x 8); pooled live over two interleaved trials, 44 per arm each,
+3.08 vs 3.14 for the default. That is the best total evidence of any
+variant, and still not a proven live gain. Shipping it into the defaults
+for the tournament is the user's decision.
+
+Summary of the day's live trials (all on the same bot, interleaved,
+against the same field): nothing beat the shipped default by the gate,
+and the one candidate the replay liked most lost by 0.68. Replay effects
+of 0.1-0.2 places are below what the live gate can resolve in an hour,
+and at least one such effect did not transfer at all.
+
 ## Live opponents and the tournament phases (2026-10-23)
 
 **The strongest live opponent.** "bot" (id 7) beat LetterShark in 3 of

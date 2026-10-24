@@ -72,6 +72,7 @@ const COMMON: Params = {
   earlyFloor: 0,
   earlyFloorRack: 11,
   earlyFloorFrac: 0.34,
+  foundationWeight: 0,
   hold7Ext: 0,
   hold7MinLeft: 6,
   taxShade: 1,

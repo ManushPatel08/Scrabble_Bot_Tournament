@@ -1,14 +1,24 @@
 # Current live session — October 24, 2026 (America/Los_Angeles)
 
-The current registration is **Manush3 / LetterSharkPro: team 80, bot 86**.
-It was created at 07:40 PT on October 24 through the normal account flow
-(`scripts/replace-registration.ts`), on the user's explicit request in the
-Claude session ("Register another fresh one"). Bot 84 / team 78 (Manush2)
-was stopped at a match boundary first, after 15 matches: 3 wins, total score
-1173. Its archives are `logs/retired-84-registration.json` and
-`logs/retired-84-live.log`. Bots 76/70 and 70/64 are historical. Do not
-create another registration, revive a retired bot, or delete anything
-without another explicit request from the user.
+The current registration is **Manush4 / LetterSharkPro: team 89, bot 95**,
+created at 09:55 PT on October 24 through the normal account flow
+(`scripts/replace-registration.ts`) on the user's explicit request ("Start
+a new bot with strongest variant"). It runs **standalone
+`BOT_PARAMS={"futureCountNoise":1}`**, no A/B: the only change with
+positive replay evidence on two datasets and neutral-to-slightly-positive
+pooled live evidence (44 per arm over two trials: 3.08 vs 3.14). This is
+the strongest variant by total evidence, not a proven improvement.
+Earlier registrations today, all retired at the user's request: bot 86 /
+team 80 (Manush3, 07:40-09:54, 110 matches, archives
+`logs/retired-86-*`), bot 84 / team 78 (Manush2, 15 matches,
+`logs/retired-84-*`), bot 76 / team 70 (Manush, `logs/retired-76-*`).
+Do not create another registration, revive a retired bot, or delete
+anything without another explicit request from the user.
+
+**Open decision for the user:** `scripts/restart-live.ps1 -Tournament`
+clears overrides, so the tournament would run `futureCountNoise=0` unless
+the user approves shipping 1 into `DEFAULT_PARAMS`/`VERSIONS.final`. Ask
+before the 21:00 handoff; do not promote it silently.
 
 **Controller: Claude Code is the sole controller (since 07:40 PT, user
 instruction "take access of everything").** All three Codex automations
@@ -18,18 +28,16 @@ instruction. The originals are backed up in the Claude session scratchpad.
 A process watcher saw no Codex-spawned process at the 07:43 health slot.
 Do not reactivate them while Claude controls the bot.
 
-Current configuration: **interleaved live A/B on bot 86, trial 3** (from
-09:33 PT; `trialSince` in `runner-state.json` is the first labelled
-match). A is the shipped default (no BOT_PARAMS); B is
-`BOT_PARAMS_B={"shadeLow":0.8}` (experiment 115: Lambi Lambiii's rule,
-bids on 1-2 point letters x0.8 except in the last 12 auctions). Score it
-with `node scripts/ab-live.mjs logs/manush3-live.log --since <trialSince>`
-(`scripts/health.mjs` does this). Earlier trials in the same log:
-trial 1 #2332-2563 (B = futureCountNoise 1) inconclusive at 21 per arm,
-A 3.24 / 24% / 79 vs B 3.00 / 24% / 80; trial 2 #2565-2857 (B = cashBelow
-12 + futureAffordable 1) **rejected** at 25 per arm, A 3.20 / 8% / 78 vs
-B 3.88 / 12% / 76 (0.68 worse, 4 last places). Never score the log
-without `--since`. Shipped defaults are unchanged. Consult
+Current configuration: bot 95, standalone `{"futureCountNoise":1}`, log
+`logs/manush4-live.log`, **no live A/B**. Bot 86's log
+(`logs/retired-86-live.log` = `logs/manush3-live.log`) holds three
+trials, scored only with `--since`: trial 1 #2332-2563 (B =
+futureCountNoise 1) inconclusive at 21 per arm, A 3.24 / 24% / 79 vs
+B 3.00 / 24% / 80; trial 2 #2565-2857 (B = cashBelow 12 +
+futureAffordable 1) **rejected** at 25 per arm, A 3.20 / 8% / 78 vs
+B 3.88 / 12% / 76; trial 3 #2876-2990 (B = shadeLow 0.8) stopped by the
+replacement at 9 per arm, A 3.33 / 0% / 81 vs B 3.89 / 11% / 77
+(inconclusive, negative trend). Shipped defaults are unchanged. Consult
 `logs/runner-state.json` before every action.
 
 Trial 3 interim rule (added 09:50 PT, because B arms cost rating while
@@ -45,8 +53,9 @@ live-trial time on candidates below about 0.3 replay places.
 - Repository: `C:\Users\Manush\Desktop\Scrabblebot\scrabblebot`, branch
   `scrabblebot-bot`. Change only `bot-starter/`.
 - `logs/runner-state.json` records the only launcher (PID, process start
-  time, log file and experiment; no secrets). Latest launch: PID 95496,
-  start 2026-10-24T16:31:58.5605873Z (trial 3).
+  time, log file and experiment; no secrets). Latest launch: PID 11672,
+  start 2026-10-24T16:55:10.1118410Z (bot 95, futureCountNoise 1 alone).
+- Casual-match log: `logs/manush4-live.log`.
 - A 20-minute process watcher (07:41-08:01) saw no Codex-spawned process
   across the 07:43 and 07:58 slots, and the Codex thread's last update
   stayed at 07:38:03. The pause holds.

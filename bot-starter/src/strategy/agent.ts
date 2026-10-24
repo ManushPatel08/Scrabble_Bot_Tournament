@@ -687,7 +687,17 @@ export class Agent implements Policy {
     const t = this.t;
     const balance = balances[t.seat]!;
     if (balance <= 0) return 0;
-    const own = this.letterValue(letter, rack);
+    let own = this.letterValue(letter, rack);
+    if (this.p.foundationWeight > 0 && t.bagTotal > 1 && (t.bagTotal + 1) / t.totalAuctions() > 1 - this.p.earlyFloorFrac) {
+      const tiles = rack.reduce((a, b) => a + b, 0);
+      if (tiles < this.p.earlyFloorRack && this.idx.bestRewardSig(rack, this.p.autoPlayLen) === -1) {
+        const u = this.letterUsefulness(rack);
+        let sum = 0;
+        let n = 0;
+        for (let c = 0; c < N_LETTERS; c++) if (u[c]! > 0) { sum += u[c]!; n++; }
+        if (n > 0 && sum > 0) own += (this.p.foundationWeight * u[letter]! * n) / sum;
+      }
+    }
     this.lastValue = own;
     const value = own + this.denialValue(letter, scores);
     let credit = 0;

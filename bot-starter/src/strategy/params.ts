@@ -208,6 +208,13 @@ export interface Params {
   earlyFloor: number;
   earlyFloorRack: number;
   earlyFloorFrac: number;
+  /**
+   * Selective foundation value (points, 0 = off): under the same early /
+   * small-rack conditions as earlyFloor, add this many points times the
+   * letter's usefulness toward 7-8 letter words, relative to the average
+   * useful letter (letterUsefulness). Rewards structure, not any letter.
+   */
+  foundationWeight: number;
   /** Hold a 7-letter word while at least this many unseen tiles would extend it to 8+ (0 = off). */
   hold7Ext: number;
   /** hold7Ext applies only with at least this many usable auctions left. */
@@ -309,6 +316,7 @@ export const DEFAULT_PARAMS: Params = {
   earlyFloor: 0,
   earlyFloorRack: 11,
   earlyFloorFrac: 0.34,
+  foundationWeight: 0,
   hold7Ext: 0,
   hold7MinLeft: 6,
   taxShade: 1,
