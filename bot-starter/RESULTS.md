@@ -558,6 +558,52 @@ real in replay but far too small for a live trial to resolve. Treat B2 as
 "stack on B if B is adopted", not as a separate live candidate.
 Raw: `sim/experiments/113-b2-confirm.md`.
 
+### Live trial 2 verdict (bot 86, #2565-2800, 09:29 PT): **B rejected**
+
+| Arm | Completed | Wins | Last places | Mean place | Mean score |
+|---|--:|--:|--:|--:|--:|
+| A: shipped default | 25 | 2 | 1 | **3.20** | 78 |
+| B: cashBelow 12 + futureAffordable 1 | 25 | 3 | 4 | 3.88 | 76 |
+
+B is 0.68 places worse at the 25-per-arm gate (threshold 0.4), so it is
+dropped as pre-registered. The difference is about 1.6 standard errors,
+so this is not proof that B is harmful, but it is clearly not the large
+live gain the user needs, and the replay's +0.17-0.22 did not show up.
+Live behaviour matched the design (B cashed 0.3 short words per game
+mid-match, A none), so this is a strategy result, not a bug. Lesson for
+the replay: changes to *when we cash* alter our own future purchases,
+which the replay models, but also what rivals can buy and how they bid
+afterwards, which it does not. Treat cash-timing replay gains as
+unreliable. `cashBelow`/`futureAffordable` stay off. The bot runs the
+shipped default alone from about 09:30 PT until the next candidate.
+
+### Experiment 115: Lambi Lambiii's mechanisms in our engine
+
+The user shared bot #77's write-up (mean place 2.1-2.45 live). Its
+distinct rules were added as switches: `shadeLow` (bids on 1-2 point
+letters x0.8 except in the last 12 auctions), `lateCashLen`/`lateCashWindow`
+(play any 5+ letter word in the last 12), `finalPackWindow` (exact packing
+in the last 3), `rackCap` (cash at 11+ tiles). Its cash-when-broke trigger
+is `cashBelow`. 340 x 2, on top of B and on the default:
+
+| Variant | Wins | Place | Score | Letters | Paired vs default |
+|---|--:|--:|--:|--:|--:|
+| B | 25.4% | 2.76 | 86.3 | 12.3 | -0.17 ± 0.10 |
+| B + shade 0.8 | 26.2% | 2.80 | 86.5 | 11.5 | -0.12 ± 0.12 |
+| B + late cash 5+ in last 12 | 22.1% | 2.96 | 83.5 | 12.3 | +0.03 ± 0.10 |
+| B + pack in last 3 | 23.5% | 2.83 | 85.0 | 12.1 | -0.10 ± 0.10 |
+| B + rack cap 11 | 25.4% | 2.76 | 86.3 | 12.3 | -0.17 ± 0.10 (never triggers) |
+| B + shade + late cash + pack | 20.7% | 3.07 | 82.1 | 11.2 | +0.14 ± 0.11 |
+| default + shade 0.8 | 23.1% | 2.88 | 85.0 | 10.8 | -0.05 ± 0.12 |
+
+Nothing transfers. Lambi's rules correct a valuation that over-bids on
+common letters; ours already under-buys them, so shading just buys 0.7
+fewer. Late cashing and early packing cost us the final-partition points.
+`shadeLow 0.8` went to live trial 3 anyway (09:33 PT): the replay is
+neutral, Lambi's live evidence is strong (3.0 to 2.1 over 40 games), and
+the replay cannot see what rivals do with the cheap letters we stop
+taking. All switches stay off in the shipped defaults.
+
 ## Live opponents and the tournament phases (2026-10-23)
 
 **The strongest live opponent.** "bot" (id 7) beat LetterShark in 3 of

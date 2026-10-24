@@ -18,25 +18,27 @@ instruction. The originals are backed up in the Claude session scratchpad.
 A process watcher saw no Codex-spawned process at the 07:43 health slot.
 Do not reactivate them while Claude controls the bot.
 
-Current configuration: **interleaved live A/B on bot 86, trial 2, from
-match #2565** (08:30 PT). A is the shipped default (no BOT_PARAMS); B is
-`BOT_PARAMS_B={"cashTiming":1,"cashMinLen":2,"cashBelow":12,"futureAffordable":1}`
-(experiments 109-110: cash short words only when nearly broke, and cap the
-Monte Carlo futures by what the balance can buy). Score it with
-`node scripts/ab-live.mjs logs/manush3-live.log --since 2565`
-(`runner-state.json` carries `trialSince`; `scripts/health.mjs` uses it).
-Trial 1 (#2332-2563, B = futureCountNoise 1) ended inconclusive at 21 per
-arm: A 3.24 / 24% / 79, B 3.00 / 24% / 80. The same log holds both trials,
-so never score it without `--since`. Shipped defaults are unchanged.
-Consult `logs/runner-state.json` before every action.
+Current configuration: **interleaved live A/B on bot 86, trial 3** (from
+09:33 PT; `trialSince` in `runner-state.json` is the first labelled
+match). A is the shipped default (no BOT_PARAMS); B is
+`BOT_PARAMS_B={"shadeLow":0.8}` (experiment 115: Lambi Lambiii's rule,
+bids on 1-2 point letters x0.8 except in the last 12 auctions). Score it
+with `node scripts/ab-live.mjs logs/manush3-live.log --since <trialSince>`
+(`scripts/health.mjs` does this). Earlier trials in the same log:
+trial 1 #2332-2563 (B = futureCountNoise 1) inconclusive at 21 per arm,
+A 3.24 / 24% / 79 vs B 3.00 / 24% / 80; trial 2 #2565-2857 (B = cashBelow
+12 + futureAffordable 1) **rejected** at 25 per arm, A 3.20 / 8% / 78 vs
+B 3.88 / 12% / 76 (0.68 worse, 4 last places). Never score the log
+without `--since`. Shipped defaults are unchanged. Consult
+`logs/runner-state.json` before every action.
 
 ## Operations
 
 - Repository: `C:\Users\Manush\Desktop\Scrabblebot\scrabblebot`, branch
   `scrabblebot-bot`. Change only `bot-starter/`.
 - `logs/runner-state.json` records the only launcher (PID, process start
-  time, log file and experiment; no secrets). Latest launch: PID 101640,
-  start 2026-10-24T15:30:01.8595739Z.
+  time, log file and experiment; no secrets). Latest launch: PID 95496,
+  start 2026-10-24T16:31:58.5605873Z (trial 3).
 - A 20-minute process watcher (07:41-08:01) saw no Codex-spawned process
   across the 07:43 and 07:58 slots, and the Codex thread's last update
   stayed at 07:38:03. The pause holds.

@@ -230,3 +230,17 @@ test("hold7Ext keeps a 7-letter word only with many extensions, time left and mo
   assert.deepEqual(words({ hold7Ext: 5, cashBelow: 12 }, 5), ["RETAINS"]); // broke: cash it
   assert.deepEqual(words({ hold7Ext: 5 }, 100, 0), ["RETAINS"]); // final auction: play out
 });
+
+test("shadeLow scales only 1-2 point letters, only while enough auctions remain", () => {
+  const bid = (params: Record<string, number>, letter: string, bagTotal = 40) => {
+    const a = new Agent({ ...FINAL, ...params, mcValuation: 0, faceMult: 2, faceAdd: 4, contestFrac: 0 }, "shade");
+    start(a, 6, [null, null, null, null, null, null], "Vickrey");
+    return a.onAuction({ ...view(6, letter), rack: countsOf("RETAIN"), bagTotal, balances: [100, 100, 100, 100, 100, 100] }).bid;
+  };
+  assert.ok(bid({ shadeLow: 0.8 }, "E") < bid({}, "E"));
+  assert.equal(bid({ shadeLow: 0.8 }, "E"), Math.floor(bid({}, "E") * 0.8));
+  assert.equal(bid({ shadeLow: 0.8 }, "Z"), bid({}, "Z")); // 10-point letter: never shaded
+  assert.equal(bid({ shadeLow: 0.8 }, "D"), Math.floor(bid({}, "D") * 0.8)); // 2 points: shaded
+  assert.equal(bid({ shadeLow: 0.8 }, "E", 10), bid({}, "E", 10)); // last 12 auctions: not shaded
+  assert.equal(bid({ shadeLow: 0.8 }, "E", 0), 0);
+});

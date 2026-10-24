@@ -187,6 +187,17 @@ export interface Params {
   cashLate: number;
   /** Cap Monte Carlo future letters at this multiple of balance / median price (0 = off). */
   futureAffordable: number;
+  /** Vickrey: multiply bids on letters worth 1-2 points by this (1 = off), except in the last shadeLowWindow auctions. */
+  shadeLow: number;
+  /** shadeLow is lifted within this many usable auctions of the end. */
+  shadeLowWindow: number;
+  /** In the last lateCashWindow usable auctions, play any word of at least this length (0 = off). */
+  lateCashLen: number;
+  lateCashWindow: number;
+  /** Play the exact packing of the whole rack within this many usable auctions of the end (0 = only on the final auction). */
+  finalPackWindow: number;
+  /** Play the rack's best word set whenever it holds at least this many tiles (0 = off). */
+  rackCap: number;
   /** Hold a 7-letter word while at least this many unseen tiles would extend it to 8+ (0 = off). */
   hold7Ext: number;
   /** hold7Ext applies only with at least this many usable auctions left. */
@@ -279,6 +290,12 @@ export const DEFAULT_PARAMS: Params = {
   cashBelow: 0,
   cashLate: 0,
   futureAffordable: 0,
+  shadeLow: 1,
+  shadeLowWindow: 12,
+  lateCashLen: 0,
+  lateCashWindow: 12,
+  finalPackWindow: 0,
+  rackCap: 0,
   hold7Ext: 0,
   hold7MinLeft: 6,
   taxShade: 1,

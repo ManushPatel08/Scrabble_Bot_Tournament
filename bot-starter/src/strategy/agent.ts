@@ -23,6 +23,7 @@ import {
   N_LETTERS,
   VOWELS,
   letterIndex,
+  wordReward,
 } from "../game/letters.ts";
 import { Rng } from "../game/rng.ts";
 import type {
@@ -572,7 +573,7 @@ export class Agent implements Policy {
       balances[me]! += this.idx.sigReward[s]!;
     };
 
-    if (t.isFinalAuction() && this.p.endPlayout !== 0) {
+    if ((t.isFinalAuction() || (this.p.finalPackWindow > 0 && t.usableFutureAuctions() < this.p.finalPackWindow)) && this.p.endPlayout !== 0) {
       // Last chance to score: the match ends when this auction closes.
       const plan =
         this.p.endPlayout === 1
@@ -608,6 +609,24 @@ export class Agent implements Policy {
         }
       }
       play(s);
+    }
+
+    // Late cash: near the end a held word rarely grows, and its coins can
+    // still buy the remaining letters.
+    if (this.p.lateCashLen > 0 && t.usableFutureAuctions() < this.p.lateCashWindow) {
+      for (;;) {
+        const s = this.idx.bestRewardSig(rack, this.p.lateCashLen);
+        if (s === -1) break;
+        play(s);
+      }
+    }
+    // Rack cap: a big rack is already a scoring set; cash it and rebuild.
+    if (this.p.rackCap > 0 && rack.reduce((a, b) => a + b, 0) >= this.p.rackCap) {
+      for (const w of this.idx.bestPartition(rack, 2, 100_000, 100).words) {
+        words.push(w);
+        for (let k = 0; k < w.length; k++) rack[w.charCodeAt(k) - 65]!--;
+        balances[me]! += wordReward(w);
+      }
     }
 
     if (this.p.protectedCashBelow > 0 && balances[me]! < this.p.protectedCashBelow) {
@@ -736,6 +755,11 @@ export class Agent implements Policy {
         }
       }
       if (this.p.taxShade < 1 && this.taxed()) bid = Math.floor(bid * this.p.taxShade);
+      // Common letters return few points per coin (public archive: about
+      // 0.23 for 1-point letters vs 0.6-1.0 for J/Q/X/Z); shade them while
+      // coins still have a future.
+      if (this.p.shadeLow < 1 && LETTER_VALUES[letter]! <= 2 && t.usableFutureAuctions() >= this.p.shadeLowWindow)
+        bid = Math.floor(bid * this.p.shadeLow);
       if (this.p.bidJitter > 0 && bid > 0) {
         const f = 1 + (this.rng.next() * 2 - 1) * this.p.bidJitter;
         bid = Math.max(1, Math.min(balance, Math.round(bid * f)));
