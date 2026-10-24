@@ -550,6 +550,14 @@ running dry is exactly what B fixes, so the old result may not transfer.
 to be tested against B (not against the default) after trial 2 settles.
 B stays as the live arm for now.
 
+Experiment 113 measured B2 against B directly (340 x 4): place 2.77 vs
+2.80, wins 24.9% vs 24.6%, score 86.8 vs 86.3, letters 12.9 vs 12.3,
+paired **-0.026 ± 0.019**. contestFrac 2.0 is the same; budget 4 gives it
+back (13.2 letters, 15.8 coins left, 0.000 ± 0.030). The increment is
+real in replay but far too small for a live trial to resolve. Treat B2 as
+"stack on B if B is adopted", not as a separate live candidate.
+Raw: `sim/experiments/113-b2-confirm.md`.
+
 ## Live opponents and the tournament phases (2026-10-23)
 
 **The strongest live opponent.** "bot" (id 7) beat LetterShark in 3 of
