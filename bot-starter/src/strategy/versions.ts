@@ -12,6 +12,7 @@ const COMMON: Params = {
   winPrior: 0.35,
   winPriorWeight: 10,
   winPriorScale: 0,
+  moneyShareWeight: 0,
   horizonCap: 20,
   futureBias: 0,
   trackBag: 1,

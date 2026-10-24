@@ -137,6 +137,7 @@ export class Agent implements Policy {
     this.lastBid = 0;
     this.prepared = null;
     this.valueCache = null;
+    this.lastBalances = null;
   }
 
   onAuctionResult(r: AuctionOutcome): void {
@@ -169,6 +170,7 @@ export class Agent implements Policy {
     t.openAuction(v.round, v.letter, v.bagTotal);
     const rack = v.rack.slice();
     const balances = v.balances.slice();
+    this.lastBalances = balances;
     const key = rackKey(rack);
     const prep = this.prepared;
     this.prepared = null;
@@ -259,8 +261,25 @@ export class Agent implements Policy {
     const done = t.history.length;
     const active = t.activeN();
     const prior = this.p.winPriorScale && active > 6 ? (this.p.winPrior * 6) / active : this.p.winPrior;
-    return (t.wins[t.seat]! + prior * this.p.winPriorWeight) / (done + this.p.winPriorWeight);
+    const hist = (t.wins[t.seat]! + prior * this.p.winPriorWeight) / (done + this.p.winPriorWeight);
+    const w = this.p.moneyShareWeight;
+    const bal = this.lastBalances;
+    if (!w || !bal) return hist;
+    // Our share of the money held by the bots that compete for letters (sims
+    // bid by formula and rarely contest a wanted letter).
+    let mine = 0;
+    let all = 0;
+    for (let j = 0; j < t.n; j++) {
+      if (t.inactive(j) || (j !== t.seat && t.sims[j])) continue;
+      const b = Math.max(0, bal[j] ?? 0);
+      all += b;
+      if (j === t.seat) mine = b;
+    }
+    return all > 0 ? hist + w * (mine / all - hist) : hist;
   }
+
+  /** Balances at the last auction we saw (for winShare's money share). */
+  private lastBalances: readonly number[] | null = null;
 
   /** Number of future letters per sample. */
   futureCount(): number {

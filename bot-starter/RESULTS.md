@@ -110,6 +110,16 @@ what they'd give the opponent, the zero-sum view, hurts.
 
 It is better in every field. A longer horizon (30 future letters instead of 20) added nothing. Decision latency with 96 samples: decideBid p99 22 ms, max 42 ms (`node sim/latency.ts 40`). The precompute, p99 0.31 s, runs in slices.
 
+**Budget-aware win share: not adopted.** In live match 124 both rival bots spent down to 0 while LetterShark kept 21 and let the sims take the last 11 letters for 2-7 each. `moneyShareWeight` blends our share of the money held by active non-sim players into the expected share of future auctions. 300 matches per cell (`66-money-share.md`), win rate:
+
+| Weight | self-v | league-v | strongbot-v | aggrtable-v | livelobby-v | duel7-v |
+|---|---|---|---|---|---|---|
+| **0 (final)** | 16.7% | 42.0% | **39.7%** | 41.0% | **94.7%** | **79.7%** |
+| 0.3 | 18.3% | **46.3%** | 32.0% | 42.0% | 95.0% | 78.3% |
+| 0.6 | **20.3%** | **46.3%** | 36.0% | **43.7%** | 91.7% | 77.0% |
+
+Gains in three fields are matched by losses in the other three, so it stays off (weight 0, kept for later study).
+
 **Latency on the live server.** Per-round instrumentation:
 - Auction messages arrive steadily: about 70 ms of jitter, with our clock
   about 0.5 s behind the server's.

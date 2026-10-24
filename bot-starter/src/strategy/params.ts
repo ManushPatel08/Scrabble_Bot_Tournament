@@ -15,6 +15,12 @@ export interface Params {
   winPriorWeight: number;
   /** 1 = scale winPrior by 6 / active players in matches with more than 6 (big bracket matches). */
   winPriorScale: number;
+  /**
+   * Blend weight (0 = off) of our share of the money held by active non-sim
+   * players into the expected share of future auctions: when the rivals have
+   * run dry we will win most of what is left, and the other way round.
+   */
+  moneyShareWeight: number;
   /** Cap on future letters per sample (keeps evaluation cheap). */
   horizonCap: number;
   /**
@@ -120,6 +126,7 @@ export const DEFAULT_PARAMS: Params = {
   winPrior: 0.35,
   winPriorWeight: 10,
   winPriorScale: 0,
+  moneyShareWeight: 0,
   horizonCap: 20,
   futureBias: 0,
   trackBag: 1,
