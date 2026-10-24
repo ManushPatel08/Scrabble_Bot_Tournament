@@ -1,6 +1,6 @@
 # Current live session — October 24, 2026 (America/Los_Angeles)
 
-> **Manual runbook (if no Claude session is running):** from bot-starter, at ~15:45 PT run `node scriptsab-live.mjs logsmanush4-live.log --since 8286`; if B's mean place is not more than 0.3 above A's run `powershell -ExecutionPolicy Bypass -File scriptsgo-ultra.ps1`, otherwise add `-NoThreshold`. Verify with `node scriptshealth.mjs`, commit and push src/strategy/params.ts and versions.ts to `tournament scrabblebot-bot:main`. At 21:00 PT run `powershell -ExecutionPolicy Bypass -File scriptsestart-live.ps1 -Tournament`. Recovery: `restart-live.ps1 -IfDown`. Never run go-ultra twice or start run.ps1 by hand.
+> **Manual runbook (if no Claude session is running):** from bot-starter, at ~15:45 PT run `node scripts/ab-live.mjs logs/manush4-live.log --since 8286`; if B's mean place is not more than 0.3 above A's run `powershell -ExecutionPolicy Bypass -File scripts/go-ultra.ps1`, otherwise add `-NoThreshold`. Verify with `node scripts/health.mjs`, then commit and push src/strategy/params.ts and versions.ts to `tournament scrabblebot-bot:main`. At 21:00 PT run `powershell -ExecutionPolicy Bypass -File scripts/restart-live.ps1 -Tournament`. Recovery: `scripts/restart-live.ps1 -IfDown`. Never run go-ultra twice or start run.ps1 by hand.
 
 The current registration is **Manush4 / LetterSharkPro: team 89, bot 95**,
 created at 09:55 PT on October 24 through the normal account flow
