@@ -37,7 +37,7 @@ import type {
 import { type Params, withParams } from "./params.ts";
 import { MatchTracker } from "./tracker.ts";
 import { HISTORICAL_WIN_PRICES, HISTORICAL_WIN_WEIGHTS } from "./market-prices.ts";
-import { rolloutBid } from "./rollout.ts";
+import { priceQuantile, rolloutBid } from "./rollout.ts";
 
 let letterWeights: number[] | null = null;
 
@@ -320,6 +320,30 @@ export class Agent implements Policy {
     if (!(this.p.futureAffordable > 0)) return Infinity;
     const balance = Math.max(0, this.lastBalances?.[this.t.seat] ?? 100);
     return Math.max(0, Math.round((this.p.futureAffordable * balance) / Math.max(1, this.medianPrice())));
+  }
+
+  /**
+   * rolloutPriceAdapt: this match's price level relative to the archive,
+   * from the prices paid so far against the archive medians of the same
+   * letters (1 when off or fewer than 5 prices are known).
+   */
+  private rolloutPriceLevel(): number {
+    const w = this.p.rolloutPriceAdapt;
+    if (!(w > 0)) return 1;
+    const t = this.t;
+    const total = t.totalAuctions();
+    let paid = 0;
+    let expected = 0;
+    let n = 0;
+    t.history.forEach((h, i) => {
+      if (h.winner === null || h.paid <= 0) return;
+      paid += h.paid * 1.3;
+      expected += priceQuantile(h.letter, Math.min(2, Math.floor((3 * i) / Math.max(1, total))), 0.5);
+      n++;
+    });
+    if (n < 5 || expected <= 0) return 1;
+    const ratio = Math.min(1.4, Math.max(0.7, paid / expected));
+    return 1 + w * (ratio - 1);
   }
 
   /** Unseen tiles that would give the rack an 8+ letter word (per-rack cache). */
@@ -717,7 +741,7 @@ export class Agent implements Policy {
         { idx: this.idx, rng: this.rng, unseen: t.unseen, rack, balance, letter, auctionsLeft: t.usableFutureAuctions(),
           round: t.totalAuctions() - t.bagTotal - 1, totalAuctions: t.totalAuctions(), usefulness: this.letterUsefulness(rack) },
         { samples: this.p.rolloutSamples, horizon: this.p.rolloutHorizon, grid: this.p.rolloutGrid, bidScale: this.p.rolloutBidScale, share: this.p.rolloutShare,
-          pace: this.p.rolloutPace, priceScale: this.p.rolloutPriceScale, cashBelow: this.p.cashBelow, rackCap: this.p.rackCap,
+          pace: this.p.rolloutPace, priceScale: this.p.rolloutPriceScale * this.rolloutPriceLevel(), cashBelow: this.p.cashBelow, rackCap: this.p.rackCap,
           lateLen: this.p.lateCashLen, lateWindow: this.p.lateCashWindow, packWindow: this.p.finalPackWindow, terminalCoin: this.p.rolloutTerminalCoin },
       );
       reservation = r.bid;

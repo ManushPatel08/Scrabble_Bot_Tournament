@@ -232,6 +232,13 @@ export interface Params {
   rolloutShare: number;
   rolloutPriceScale: number;
   rolloutTerminalCoin: number;
+  /**
+   * 0 = off. Scale the rollout's archive prices by this match's observed
+   * level: the ratio of prices paid so far (x1.3, the archive's typical
+   * winning-bid-to-paid ratio) to the archive medians for those same
+   * letters, blended by this weight and clamped to 0.7-1.4. Needs 5 prices.
+   */
+  rolloutPriceAdapt: number;
   /** Hold a 7-letter word while at least this many unseen tiles would extend it to 8+ (0 = off). */
   hold7Ext: number;
   /** hold7Ext applies only with at least this many usable auctions left. */
@@ -343,6 +350,7 @@ export const DEFAULT_PARAMS: Params = {
   rolloutShare: 0.18,
   rolloutPriceScale: 1,
   rolloutTerminalCoin: 0.4,
+  rolloutPriceAdapt: 0,
   hold7Ext: 0,
   hold7MinLeft: 6,
   taxShade: 1,
