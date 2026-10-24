@@ -189,7 +189,7 @@ export class Agent implements Policy {
       if (prep.values) this.valueCache = { key, values: prep.values };
       this.preparedPartition = prep.partition;
     } else {
-      this.sampleFutures();
+      this.sampleFutures(rack);
       this.preparedPartition = null;
     }
 
@@ -240,7 +240,7 @@ export class Agent implements Policy {
     const savedBag = t.bagTotal;
     // Pretend one more tile has been drawn so futureCount() sees next round.
     t.bagTotal -= 1;
-    this.sampleFutures();
+    this.sampleFutures(rack);
     t.bagTotal = savedBag;
     const futures = this.futures;
     yield;
@@ -299,10 +299,63 @@ export class Agent implements Policy {
   /** Number of future letters per sample. */
   futureCount(): number {
     const k = Math.round(this.t.usableFutureAuctions() * this.winShare());
-    return Math.max(0, Math.min(this.p.horizonCap, k));
+    return Math.max(0, Math.min(this.p.horizonCap, k, this.affordableLetters()));
   }
 
-  private sampleFutures(): void {
+  /** Median price paid in this match so far (12 until 5 prices are known). */
+  private medianPrice(): number {
+    const paid = this.t.history.filter((h) => h.winner !== null && h.paid > 0).map((h) => h.paid).sort((a, b) => a - b);
+    return paid.length >= 5 ? paid[paid.length >> 1]! : 12;
+  }
+
+  /**
+   * futureAffordable: future letters our balance can buy at the match's
+   * median price (Infinity when off). Monte Carlo futures are free letters,
+   * so without this cap a broke bot still values its rack as if it will keep
+   * winning auctions.
+   */
+  private affordableLetters(): number {
+    if (!(this.p.futureAffordable > 0)) return Infinity;
+    const balance = Math.max(0, this.lastBalances?.[this.t.seat] ?? 100);
+    return Math.max(0, Math.round((this.p.futureAffordable * balance) / Math.max(1, this.medianPrice())));
+  }
+
+  /** Per-rack cache of letterUsefulness(). */
+  private usefulCache: { key: string; u: number[] } | null = null;
+
+  /**
+   * How much each letter advances the rack toward 7-8 letter words: for
+   * every such word, its reward x decay^(letters still missing), shared out
+   * over the missing letters. Used only to rank candidate future letters.
+   */
+  letterUsefulness(rack: Counts): number[] {
+    const key = rackKey(rack);
+    if (this.usefulCache?.key === key) return this.usefulCache.u;
+    const idx = this.idx;
+    const u = new Array<number>(N_LETTERS).fill(0);
+    const decay = this.p.futureSelectDecay;
+    for (let s = 0; s < idx.nSigs; s++) {
+      const len = idx.sigLen[s]!;
+      if (len < 7 || len > 8) continue;
+      const base = s * N_LETTERS;
+      let have = 0;
+      for (let c = 0; c < N_LETTERS; c++) {
+        const need = idx.sigCounts[base + c]!;
+        if (need) have += Math.min(need, rack[c]!);
+      }
+      const missing = len - have;
+      if (missing === 0 || missing > 6) continue;
+      const w = (idx.sigReward[s]! * Math.pow(decay, missing)) / missing;
+      for (let c = 0; c < N_LETTERS; c++) {
+        const short = idx.sigCounts[base + c]! - rack[c]!;
+        if (short > 0) u[c]! += w * short;
+      }
+    }
+    this.usefulCache = { key, u };
+    return u;
+  }
+
+  private sampleFutures(rack: Counts): void {
     const t = this.t;
     this.evMemo.clear();
     this.partitionValues.clear();
@@ -316,12 +369,38 @@ export class Agent implements Policy {
     const noise = Math.max(0, Math.min(1, this.p.futureCountNoise));
     const share = this.winShare();
     const auctions = t.usableFutureAuctions();
+    const affordable = this.affordableLetters();
     const sampleSize = () => {
       let wins = 0;
       for (let i = 0; i < auctions; i++) if (this.rng.next() < share) wins++;
-      return Math.max(0, Math.min(this.p.horizonCap, pool.length, Math.round((1 - noise) * k + noise * wins)));
+      return Math.max(0, Math.min(this.p.horizonCap, pool.length, affordable, Math.round((1 - noise) * k + noise * wins)));
     };
     this.futures = [];
+    if (this.p.futureSelect > 1 && this.p.futureBias === 0 && this.p.futureWinBias === 0) {
+      // We win the auctions we value most: draw more candidate letters than
+      // we expect to win (never more than the auctions left) and keep the
+      // most useful ones. Ties break by draw order, which is random.
+      const useful = this.letterUsefulness(rack);
+      const order: number[] = [];
+      for (let s = 0; s < this.p.samples; s++) {
+        const size = noise > 0 ? sampleSize() : kk;
+        const seen = Math.min(Math.round(this.p.futureSelect * size), Math.max(auctions, size));
+        const draw = Math.min(pool.length, Math.max(size, seen));
+        for (let i = 0; i < draw; i++) {
+          const j = i + this.rng.int(pool.length - i);
+          const tmp = pool[i]!;
+          pool[i] = pool[j]!;
+          pool[j] = tmp;
+        }
+        order.length = 0;
+        for (let i = 0; i < draw; i++) order.push(i);
+        order.sort((a, b) => useful[pool[b]!]! - useful[pool[a]!]! || a - b);
+        const f = new Array<number>(N_LETTERS).fill(0);
+        for (let i = 0; i < size; i++) f[pool[order[i]!]!]!++;
+        this.futures.push(f);
+      }
+      return;
+    }
     if (this.p.futureBias > 0 || this.p.futureWinBias > 0) {
       // Weighted sampling without replacement (Efraimidis-Spirakis keys).
       const w = wordLetterWeights(this.idx);
@@ -521,6 +600,14 @@ export class Agent implements Policy {
       }
     }
     if (!this.p.cashTiming) return words;
+    // Liquidity gates (both 0 = always on): cash only when nearly broke, or
+    // only in the last few usable auctions, when a held word's chance of
+    // growing is small and its money can still buy letters.
+    if (this.p.cashBelow > 0 || this.p.cashLate > 0) {
+      const broke = this.p.cashBelow > 0 && balances[me]! < this.p.cashBelow;
+      const late = this.p.cashLate > 0 && t.usableFutureAuctions() <= this.p.cashLate;
+      if (!broke && !late) return words;
+    }
     // Cash a shorter word when its money is worth more than the expected
     // loss from committing its letters now.
     for (let guard = 0; guard < 2; guard++) {

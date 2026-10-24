@@ -34,7 +34,7 @@ if (fs.existsSync(log)) {
   for (const l of ended.slice(-3)) out.push(`  ${l.slice(25, 220)}`);
   if (ageS > 180) warn.push(`log stale ${ageS.toFixed(0)} s`);
   if (state.paramsB) {
-    const ab = spawnSync(process.execPath, ["scripts/ab-live.mjs", log], { encoding: "utf8" });
+    const ab = spawnSync(process.execPath, ["scripts/ab-live.mjs", log, "--since", String(state.trialSince ?? 0)], { encoding: "utf8" });
     out.push(ab.stdout.trim());
   }
 } else warn.push(`missing log ${log}`);

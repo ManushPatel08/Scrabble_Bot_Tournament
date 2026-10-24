@@ -96,6 +96,15 @@ export interface Params {
   futureWinBias: number;
   /** Blend fixed future acquisition counts with binomial samples (0 = fixed, 1 = full uncertainty). */
   futureCountNoise: number;
+  /**
+   * Selection-aware futures (0 = off): each Monte Carlo future draws this
+   * many times the letters we expect to win from the unseen pool and keeps
+   * the ones most useful to our rack, since we win the auctions we value
+   * most. Uniform futures understate the value of a half-built long word.
+   */
+  futureSelect: number;
+  /** futureSelect: weight per missing letter when scoring how much a letter advances a 7-8 letter word. */
+  futureSelectDecay: number;
   /** 1 = sample futures from the tracked unseen pool; 0 = from the full 98-tile bag. */
   trackBag: number;
   /** Final auction: 2 = exact best partition, 1 = greedy partition, 0 = no special play-out. */
@@ -172,6 +181,12 @@ export interface Params {
   cashTiming: number;
   /** Shortest word considered for early cashing. */
   cashMinLen: number;
+  /** cashTiming gate: cash only while the balance is below this (0 = no balance gate). */
+  cashBelow: number;
+  /** cashTiming gate: cash only within this many usable auctions of the end (0 = no time gate). */
+  cashLate: number;
+  /** Cap Monte Carlo future letters at this multiple of balance / median price (0 = off). */
+  futureAffordable: number;
 
   // --- opponent modeling ---
   /**
@@ -225,6 +240,8 @@ export const DEFAULT_PARAMS: Params = {
   futureBias: 0,
   futureWinBias: 0,
   futureCountNoise: 0,
+  futureSelect: 0,
+  futureSelectDecay: 0.35,
   trackBag: 1,
   endPlayout: 2,
   endgameExact: 0,
@@ -255,6 +272,9 @@ export const DEFAULT_PARAMS: Params = {
   protectedCashBelow: 0,
   cashTiming: 0,
   cashMinLen: 4,
+  cashBelow: 0,
+  cashLate: 0,
+  futureAffordable: 0,
   taxShade: 1,
   taxRatio: 0.75,
   bidJitter: 0,

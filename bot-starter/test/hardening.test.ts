@@ -188,3 +188,29 @@ test("leader tax never exceeds balance and is off on the final auction", () => {
   const last = a.onAuction({ ...view(2, "Q", [90, 90], [10, 40]), round: 88, bagTotal: 0 }).bid;
   assert.equal(last, 0);
 });
+
+test("cashBelow cashes short words only when nearly broke; futureAffordable caps futures by money", () => {
+  const idx = new WordIndex(["RETAIN", "RETAINS", "JO", "FIZ"]);
+  const decide = (params: Record<string, number>, balance: number, bagTotal = 40) => {
+    const a = new Agent({ ...FINAL, ...params, samples: 8 }, "liquidity", idx);
+    start(a, 6, [null, null, null, null, null, null], "Vickrey");
+    const rack = countsOf("RETAINJO");
+    const d = a.onAuction({ ...view(6, "S"), rack, bagTotal, balances: [balance, 100, 100, 100, 100, 100] });
+    const after = rack.slice();
+    for (const word of d.words) for (const ch of word) after[letterIndex(ch)]!--;
+    assert.ok(after.every((n) => n >= 0));
+    assert.ok(d.bid <= balance + d.words.reduce((s, w) => s + wordReward(w), 0));
+    return { d, a };
+  };
+  const gate = { cashTiming: 1, cashMinLen: 2, cashBelow: 12 };
+  assert.ok(decide(gate, 5).d.words.includes("JO")); // broke: short words are cashed (RETAIN may go too)
+  assert.deepEqual(decide(gate, 30).d.words, []); // solvent: hold everything, as the shipped default does
+  assert.ok(decide({ ...gate, cashBelow: 0 }, 30).d.words.length > 0); // no gate: the plain cashTiming rule cashes
+  assert.equal(decide(gate, 5, 0).d.bid, 0); // final auction: never bid
+  // Affordability: with 5 coins the futures hold at most 5 / median price letters.
+  const broke = decide({ futureAffordable: 1 }, 5).a;
+  assert.ok(broke.futureCount() <= 1);
+  const rich = decide({ futureAffordable: 1 }, 100).a;
+  assert.ok(rich.futureCount() >= 4);
+  assert.equal(decide({ futureAffordable: 0 }, 5).a.futureCount(), decide({}, 5).a.futureCount());
+});

@@ -87,6 +87,6 @@ $logFile = if ($Tournament) { 'logs\tournament.log' } elseif ($runner.logFile) {
 $launchArgs = @('-NoProfile','-ExecutionPolicy','Bypass','-File','.\run.ps1','-BotName',$botName,'-Team',$teamName,'-Bot',$botName,'-NewToken','-LogFile',$logFile)
 if ($Tournament) { $launchArgs += '-NoLobby' }
 $next = Start-Process powershell -WindowStyle Hidden -WorkingDirectory $botRoot -ArgumentList $launchArgs -RedirectStandardOutput 'logs\codex-launch.out.log' -RedirectStandardError 'logs\codex-launch.err.log' -PassThru
-@{ launcherPid = $next.Id; processStartUtc = $next.StartTime.ToUniversalTime().ToString('o'); botId = $runner.botId; teamId = $runner.teamId; botName = $botName; teamName = $teamName; logFile = $logFile; paramsA = $(if ($ParamsA -and -not $Tournament) { $ParamsA } else { $null }); paramsB = $(if ($ParamsB -and -not $Tournament) { $ParamsB } else { $null }); tournamentMode = [bool]$Tournament } |
+@{ launcherPid = $next.Id; processStartUtc = $next.StartTime.ToUniversalTime().ToString('o'); botId = $runner.botId; teamId = $runner.teamId; botName = $botName; teamName = $teamName; logFile = $logFile; paramsA = $(if ($ParamsA -and -not $Tournament) { $ParamsA } else { $null }); paramsB = $(if ($ParamsB -and -not $Tournament) { $ParamsB } else { $null }); tournamentMode = [bool]$Tournament; trialSince = $(if ($IfDown) { $runner.trialSince } else { $null }) } |
   ConvertTo-Json | Set-Content -LiteralPath $stateFile
 Write-Output "$botName launcher PID $($next.Id); log $logFile"

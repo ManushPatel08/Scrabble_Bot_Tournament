@@ -18,20 +18,28 @@ instruction. The originals are backed up in the Claude session scratchpad.
 A process watcher saw no Codex-spawned process at the 07:43 health slot.
 Do not reactivate them while Claude controls the bot.
 
-Current configuration: **interleaved live A/B on bot 86**, starting with
-the first labelled match, #2332. A is the shipped default (no BOT_PARAMS),
-and B is `BOT_PARAMS_B={"futureCountNoise":1}`. Score the trial with
-`node scripts/ab-live.mjs logs/manush3-live.log`. Shipped defaults still
-have `futureCountNoise=0`. Consult `logs/runner-state.json` before every
-action.
+Current configuration: **interleaved live A/B on bot 86, trial 2, from
+match #2565** (08:30 PT). A is the shipped default (no BOT_PARAMS); B is
+`BOT_PARAMS_B={"cashTiming":1,"cashMinLen":2,"cashBelow":12,"futureAffordable":1}`
+(experiments 109-110: cash short words only when nearly broke, and cap the
+Monte Carlo futures by what the balance can buy). Score it with
+`node scripts/ab-live.mjs logs/manush3-live.log --since 2565`
+(`runner-state.json` carries `trialSince`; `scripts/health.mjs` uses it).
+Trial 1 (#2332-2563, B = futureCountNoise 1) ended inconclusive at 21 per
+arm: A 3.24 / 24% / 79, B 3.00 / 24% / 80. The same log holds both trials,
+so never score it without `--since`. Shipped defaults are unchanged.
+Consult `logs/runner-state.json` before every action.
 
 ## Operations
 
 - Repository: `C:\Users\Manush\Desktop\Scrabblebot\scrabblebot`, branch
   `scrabblebot-bot`. Change only `bot-starter/`.
 - `logs/runner-state.json` records the only launcher (PID, process start
-  time, log file and experiment; no secrets). Latest launch: PID 97580,
-  start 2026-10-24T14:40:45.9936658Z.
+  time, log file and experiment; no secrets). Latest launch: PID 101640,
+  start 2026-10-24T15:30:01.8595739Z.
+- A 20-minute process watcher (07:41-08:01) saw no Codex-spawned process
+  across the 07:43 and 07:58 slots, and the Codex thread's last update
+  stayed at 07:38:03. The pause holds.
 - Casual-match log: `logs/manush3-live.log`. Startup output and errors:
   `logs/codex-launch.out.log` and `logs/codex-launch.err.log`. The file
   names are historical; Claude now launches through the same helper.

@@ -389,6 +389,118 @@ Our registrations have won about 20% of all-human matches, against 32-38%
 for the three leaders. Closing that gap needs a structural change, not
 another ±0.1-place parameter adjustment.
 
+### Where the leaders' points come from (562 all-human 6-seat matches, #1200-1761)
+
+Public archive (`sim/replay/public-auction-study.json`). Points per match,
+by word length:
+
+| Player | Place | Letters (e/m/l) | 2-3 / 4 / 5 / 6 / 7 / 8+ letter words, pts | ≤6-letter pts cashed before the last auction | End-partition pts | Auctions with < 8 coins |
+|---|--:|---|---|--:|--:|--:|
+| Doppio | 2.34 | 14.0 (4.4/4.3/5.4) | 3/2/4/11/51/**24** | 20.1 | 0.3 | 0.4 |
+| Nijello | 2.38 | 12.8 (4.2/3.5/5.1) | 2/4/5/12/43/**25** | 14.9 | 10.1 | 0.8 |
+| Chinese Dante | 2.48 | 12.1 (4.5/4.3/3.2) | 2/2/4/9/**65**/11 | 2.2 | 15.2 | 4.0 |
+| postturing | 2.57 | 14.5 (5.6/3.2/5.7) | 2/2/4/10/44/**27** | 14.7 | 4.7 | 1.6 |
+| **ours** (61/70/76) | 3.22 | 11.1 (3.0/4.6/3.5) | 2/2/4/9/53/9 | **0.0** | 17.9 | 3.7 |
+
+- Our end-of-match balance (about 31) is mostly *not* unspent money. It
+  includes the final partition's word rewards (about 18), which are credited
+  when the match closes. Truly unspent money is about 12, the same as the
+  leaders'.
+- The score gap with Doppio, Nijello and postturing is almost entirely
+  **8+ letter words** (24-27 vs 9 points). Only 10-19% of their 8-letter
+  words extend a 7-letter word they already held. They build eight
+  directly. Holding every 7-letter word (auto8, experiment 81) lost.
+- The other gap is volume: 12-14.5 letters vs 11.1, at the same price per
+  letter. In our 116 recent matches (bots 76/84/86, own logs plus public
+  results) we lost **about 14 auctions per match by 1-3 coins** (5.3 early,
+  5.5 mid, 3.1 late), and about 15 more by 4-6.
+- In 28% of our matches we spend 5+ late auctions (from about 82% of the
+  match) with under 8 coins, holding letters that are cashed only in the
+  final partition (29 points on average in those matches). Mean place there
+  is 3.59 vs 2.90 otherwise. This is a correlation, not a measured cause.
+- J/Q/X/Z are not the problem. We buy 0.67 per match at 32.7 and use 95% of
+  them (58% in 7+ letter words), in line with the leaders.
+
+### Experiment 107: selection-aware futures — rejected
+
+Hypothesis: we win the auctions we value most, so uniform Monte Carlo
+futures understate a half-built long word. `futureSelect` draws this many
+times the expected future wins from the unseen pool, then keeps the
+letters that most advance the rack toward 7-8 letter words
+(`letterUsefulness`). The default is 0 (off). Fixed set, 340 matches x 2
+seeds:
+
+| Variant | Wins | Mean place | Score | Letters | Paired place change |
+|---|--:|--:|--:|--:|--:|
+| default | 22.1% | 2.93 | 84.5 | 11.5 | |
+| select 1.5 | 19.3% | 3.11 | 82.0 | 10.3 | +0.19 ± 0.14 |
+| select 2 | 17.6% | 3.17 | 80.3 | 9.9 | +0.24 ± 0.14 |
+| select 3 | 12.6% | 3.60 | 73.4 | 9.2 | +0.67 ± 0.14 |
+
+Monotonically worse. Monte Carlo futures are free letters, so a future
+that already fits the rack makes the auctioned letter look redundant, and
+the bot buys fewer letters. That is the opposite of the measured deficit.
+Lesson: any change that makes futures richer or more relevant lowers
+current values. Changes that raise purchases must work on the money side or
+on the auctioned letter's own value. Raw output:
+`sim/experiments/107-selection-futures-screen.md`.
+
+### Experiment 108: is "bid more" hidden by the replay's rival bias? No
+
+This is a measurement check, not a re-adoption: earlier buy-more variants
+were rerun with the rival-score adjustment off (0) and on (1). Fixed set,
+340 x 2:
+
+| Variant | Place (adj 0) | Paired change | Place (adj 1) | Paired change | Letters | Coins left |
+|---|--:|--:|--:|--:|--:|--:|
+| default | 2.93 | | 2.89 | | 11.5 | 31.1 |
+| mu0 0.45 | 2.96 | +0.03 ± 0.11 | 2.95 | +0.06 ± 0.11 | 11.3 | 30.2 |
+| mu0 0.40 | 3.20 | +0.28 ± 0.13 | 3.16 | +0.27 ± 0.14 | **10.8** | 31.6 |
+| contestFrac 1.5, budget 3 | 2.91 | -0.02 ± 0.02 | 2.87 | -0.02 ± 0.02 | 11.8 | 28.1 |
+| endMuScale 0.5 | 2.97 | +0.04 ± 0.04 | 2.92 | +0.03 ± 0.05 | 11.6 | 27.1 |
+
+A cheaper money price buys **fewer** letters. Higher bids overpay for early
+letters, and the money runs out before the mid- and late-game letters the
+leaders win. The rival adjustment does not change any conclusion. Money is
+genuinely scarce for us, so the leaders' extra letters come from more
+*spendable income*, not higher bids. Spendable income is the points scored
+before the final auction: about 61 for us vs about 95 for Doppio.
+
+### Experiments 109-110: cash short words when nearly broke — **first candidate to clear the bar on screen, confirmation and holdout**
+
+Mechanism (all off by default): `cashBelow` gates the existing
+`cashTiming` rule so that shorter words (down to `cashMinLen` 2) are cashed
+only while the balance is below the threshold; `futureAffordable` caps the
+Monte Carlo future letters at `balance / median price`, so a broke bot
+stops valuing its rack as if it will keep winning. `cashLate` (time gate
+only) was also tried and lost.
+
+Screen (109), 340 x 2: afford1 -0.08 ± 0.10; cashBroke12 -0.10 ± 0.04;
+cashBroke12+afford1 -0.17 ± 0.10; cashLate15 +0.09; afford2 +0.01.
+
+Confirmation (110), fixed set 340 x 4 seeds, and the frozen holdout
+#1905-2409 (92 matches x 8 seeds, built at 08:05 PT before any screening):
+
+| Variant | Fixed: place / wins / score | Paired change | Holdout: place / wins / score | Letters | Coins left |
+|---|---|--:|---|--:|--:|
+| default | 2.96 / 21.3% / 84.0 | | 3.31 / 18.5% / 77.3 | 11.5 | 31.0 |
+| cashBelow 8 | 2.85 / 23.5% / 85.7 | -0.11 ± 0.03 | 3.18 / 20.5% / 78.9 | 12.0 | 26.5 |
+| cashBelow 12 | 2.84 / 23.0% / 85.7 | -0.12 ± 0.04 | 3.19 / 20.9% / 78.7 | 12.2 | 23.8 |
+| cashBelow 16 | 2.91 / 21.5% / 84.6 | -0.05 ± 0.04 | 3.26 / 20.2% / 77.7 | 12.2 | 22.2 |
+| **cashBelow 12 + futureAffordable 1** | **2.80 / 24.6% / 86.3** | **-0.16 ± 0.08** | **3.09 / 22.0% / 80.4** | 12.3 | 24.3 |
+| cashBelow 12, min len 3 | 2.83 / 22.9% / 85.8 | -0.13 ± 0.04 | | 12.2 | 23.8 |
+
+The combination buys 0.8 more letters per match and leaves 7 fewer coins,
+which is the direction the public leaders' profiles point. It is a replay
+result, with the usual limits (rivals' bids and scores fixed). It went to
+a live A/B on bot 86 as `BOT_PARAMS_B={"cashTiming":1,"cashMinLen":2,
+"cashBelow":12,"futureAffordable":1}` at about 08:35 PT. The previous B
+(`futureCountNoise` 1) ended **inconclusive at 21 completed matches per
+arm** (#2332-2563): A 3.24 / 24% wins / 79, B 3.00 / 24% / 80. The user asked for
+larger changes, so the trial slot was given to the larger measured effect.
+Raw: `sim/experiments/109-liquidity-screen.md`,
+`sim/experiments/110-liquidity-confirm.md`.
+
 ## Live opponents and the tournament phases (2026-10-23)
 
 **The strongest live opponent.** "bot" (id 7) beat LetterShark in 3 of
