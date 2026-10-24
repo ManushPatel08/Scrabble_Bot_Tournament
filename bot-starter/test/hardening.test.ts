@@ -330,3 +330,18 @@ test("Dante opening: consonant floors early, cheap-letter cap, completion floor;
   assert.ok(bid({ cheapCap: 12 }, "E", "QZXJV", 40) <= 12);
   assert.equal(bid({ ...D, completionFloor: 20, cheapCap: 12 }, "H", "AEIOU", 0), 0); // final auction
 });
+
+test("completion floor ignores letters when the rack already holds the 7; late all-in needs a real gain", () => {
+  const bid = (params: Record<string, number>, letter: string, rack: string, bagTotal: number, balance = 100) => {
+    const a = new Agent({ ...FINAL, ...params, samples: 8 }, "bugs");
+    start(a, 6, [null, null, null, null, null, null], "Vickrey");
+    return a.onAuction({ ...view(6, letter), rack: countsOf(rack), bagTotal, balances: [balance, 100, 100, 100, 100, 100] }).bid;
+  };
+  // Holding RETAINS (cash threshold on), a J makes no better 7+ word: no floor.
+  // (Q would: RETAINS + Q = QINTARS, 48 points, a genuine completer.)
+  const H = { cashThreshA: 28, cashThreshB: 0.63, completionFloor: 20 };
+  assert.equal(bid(H, "J", "RETAINS", 40), bid({ cashThreshA: 28, cashThreshB: 0.63 }, "J", "RETAINS", 40));
+  assert.ok(bid(H, "Q", "RETAINS", 40) >= 20);
+  assert.ok(bid({ completionFloor: 20 }, "S", "RETAIN", 40) >= 20); // a real completer still gets the floor
+  assert.ok(bid({ lateAllIn: 6 }, "Q", "XXZZJ", 3, 37) < 37); // a letter that adds nothing late: no all-in
+});

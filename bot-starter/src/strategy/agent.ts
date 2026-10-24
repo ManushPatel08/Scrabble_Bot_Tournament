@@ -826,7 +826,9 @@ export class Agent implements Policy {
         rack[letter]!++;
         const sig7 = this.idx.bestRewardSig(rack, 7);
         rack[letter]!--;
-        const completes = sig7 !== -1;
+        // A completer creates a 7+ word (or a better one) that the rack alone does not have.
+        const held7 = this.idx.bestRewardSig(rack, 7);
+        const completes = sig7 !== -1 && (held7 === -1 || this.idx.sigReward[sig7]! > this.idx.sigReward[held7]!);
         if (this.p.cheapCap > 0 && face === 1 && !completes && frac > 1 / 3) bid = Math.min(bid, this.p.cheapCap);
         if (this.p.consonantFloor3 > 0 && frac > 1 - this.p.consonantPhase && (face === 3 || face === 4 || face === 5)) {
           const base = face === 3 ? this.p.consonantFloor3 : this.p.consonantFloor4;
@@ -848,7 +850,7 @@ export class Agent implements Policy {
         rack[letter]!++;
         const gain = this.idx.greedyValue(rack, 2) - before;
         rack[letter]!--;
-        if (gain > 0 || value > 0) bid = balance;
+        if (gain > 0) bid = balance;
       }
       // Common letters return few points per coin (public archive: about
       // 0.23 for 1-point letters vs 0.6-1.0 for J/Q/X/Z); shade them while
