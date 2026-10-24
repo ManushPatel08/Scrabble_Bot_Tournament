@@ -215,6 +215,23 @@ export interface Params {
    * useful letter (letterUsefulness). Rewards structure, not any letter.
    */
   foundationWeight: number;
+  /**
+   * 1 = value the auctioned letter by rollouts (src/strategy/rollout.ts):
+   * play sampled futures out to the end with a simple "future me", paired
+   * pass/win branches, bid at the break-even price. Replaces the static
+   * word-set valuation and the money formula for the bid (Vickrey: the bid;
+   * first-price: the reservation). 0 = off.
+   */
+  rolloutBid: number;
+  rolloutSamples: number;
+  rolloutHorizon: number;
+  rolloutGrid: number;
+  rolloutBidScale: number;
+  rolloutPace: number;
+  /** Share of future auctions the rollout's future me aims to win. */
+  rolloutShare: number;
+  rolloutPriceScale: number;
+  rolloutTerminalCoin: number;
   /** Hold a 7-letter word while at least this many unseen tiles would extend it to 8+ (0 = off). */
   hold7Ext: number;
   /** hold7Ext applies only with at least this many usable auctions left. */
@@ -317,6 +334,15 @@ export const DEFAULT_PARAMS: Params = {
   earlyFloorRack: 11,
   earlyFloorFrac: 0.34,
   foundationWeight: 0,
+  rolloutBid: 0,
+  rolloutSamples: 24,
+  rolloutHorizon: 20,
+  rolloutGrid: 6,
+  rolloutBidScale: 1,
+  rolloutPace: 40,
+  rolloutShare: 0.18,
+  rolloutPriceScale: 1,
+  rolloutTerminalCoin: 0.4,
   hold7Ext: 0,
   hold7MinLeft: 6,
   taxShade: 1,

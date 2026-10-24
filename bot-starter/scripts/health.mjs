@@ -27,7 +27,7 @@ if (fs.existsSync(log)) {
   const ageS = (Date.now() - fs.statSync(log).mtimeMs) / 1000;
   const lines = fs.readFileSync(log, "utf8").split("\n");
   const tail = lines.slice(-4000);
-  const bad = tail.filter((l) => /SLOW|LATE|closed|not running|error|refus/i.test(l));
+  const bad = tail.filter((l) => /\bSLOW\b|\bLATE\b|Auction closed|not running|\berror\b|refused|exited with code/.test(l));
   const ended = lines.filter((l) => / ended: place /.test(l));
   out.push(`log ${log}: last write ${ageS.toFixed(0)} s ago, ${ended.length} matches ended, ${bad.length} warnings in last ${tail.length} lines`);
   for (const l of bad.slice(-5)) out.push(`  ! ${l.slice(0, 200)}`);

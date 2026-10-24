@@ -244,3 +244,25 @@ test("shadeLow scales only 1-2 point letters, only while enough auctions remain"
   assert.equal(bid({ shadeLow: 0.8 }, "E", 10), bid({}, "E", 10)); // last 12 auctions: not shaded
   assert.equal(bid({ shadeLow: 0.8 }, "E", 0), 0);
 });
+
+test("rollout valuation: affordable, zero on the final auction, reproducible, and higher for a completing letter", () => {
+  const R = { rolloutBid: 1, rolloutSamples: 16, rolloutHorizon: 66, rackCap: 11, cashBelow: 8, lateCashLen: 5, lateCashWindow: 12, finalPackWindow: 3 };
+  const decide = (letter: string, rackStr: string, bagTotal: number, balance: number, seed = 11) => {
+    const a = new Agent({ ...FINAL, ...R }, "rollout");
+    a.onMatchStart({ seat: 0, nPlayers: 6, names: ["a", "b", "c", "d", "e", "f"], simStrategies: [null, null, null, null, null, null],
+      auctionType: "Vickrey", rack: countsOf(rackStr.slice(0, 5)), seed, offline: [false, false, false, false, false, false] });
+    for (let r = 1; r < 68 - bagTotal; r++) { a.t.openAuction(r, "A", 68 - r); a.onAuctionResult({ round: r, letter: "A", winner: 1, paid: 12 }); }
+    return a.onAuction({ ...view(6, letter), rack: countsOf(rackStr), round: 68 - bagTotal, bagTotal, balances: [balance, 60, 60, 60, 60, 60] });
+  };
+  for (const [letter, rack, bag, bal] of [["N", "RETAI", 67, 100], ["Z", "RETAI", 67, 100], ["T", "DEEIPRU", 21, 23], ["O", "U", 3, 44]] as const) {
+    const d = decide(letter, rack, bag, bal);
+    assert.ok(d.bid >= 0 && d.bid <= bal + d.words.reduce((s, w) => s + wordReward(w), 0), `${letter} ${rack}: ${d.bid}`);
+  }
+  assert.equal(decide("E", "RETAI", 0, 100).bid, 0); // final auction: its tile can never be played
+  assert.equal(decide("N", "RETAI", 67, 100).bid, decide("N", "RETAI", 67, 100).bid); // same seed, same bid
+  assert.ok(decide("Z", "RETAI", 67, 100).bid > decide("E", "RETAI", 67, 100).bid); // a rare letter is worth more coins
+  // Word rules that travel with the rollout: a 7+ word is still auto-played.
+  const auto = decide("Q", "RETAINS", 40, 100).words;
+  assert.equal(auto.length, 1);
+  assert.equal(auto[0]!.length, 7); // the anagram class of RETAINS is played under its canonical word
+});

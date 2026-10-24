@@ -37,6 +37,7 @@ import type {
 import { type Params, withParams } from "./params.ts";
 import { MatchTracker } from "./tracker.ts";
 import { HISTORICAL_WIN_PRICES, HISTORICAL_WIN_WEIGHTS } from "./market-prices.ts";
+import { rolloutBid } from "./rollout.ts";
 
 let letterWeights: number[] | null = null;
 
@@ -707,8 +708,22 @@ export class Agent implements Policy {
       rack[letter]!--;
       if (ready !== -1) credit = this.p.completionCredit * this.idx.sigReward[ready]!;
     }
-    const reservation = value / this.mu(balance) + credit; // currency we'd pay at most
+    let reservation = value / this.mu(balance) + credit; // currency we'd pay at most
     let maxBid = value > 0 ? Math.min(balance, Math.floor(reservation)) : 0;
+    if (this.p.rolloutBid > 0 && !t.isFinalAuction()) {
+      // Rollout valuation: the break-even price from played-out futures
+      // replaces the static value / money-formula reservation.
+      const r = rolloutBid(
+        { idx: this.idx, rng: this.rng, unseen: t.unseen, rack, balance, letter, auctionsLeft: t.usableFutureAuctions(),
+          round: t.totalAuctions() - t.bagTotal - 1, totalAuctions: t.totalAuctions(), usefulness: this.letterUsefulness(rack) },
+        { samples: this.p.rolloutSamples, horizon: this.p.rolloutHorizon, grid: this.p.rolloutGrid, bidScale: this.p.rolloutBidScale, share: this.p.rolloutShare,
+          pace: this.p.rolloutPace, priceScale: this.p.rolloutPriceScale, cashBelow: this.p.cashBelow, rackCap: this.p.rackCap,
+          lateLen: this.p.lateCashLen, lateWindow: this.p.lateCashWindow, packWindow: this.p.finalPackWindow, terminalCoin: this.p.rolloutTerminalCoin },
+      );
+      reservation = r.bid;
+      maxBid = r.bid;
+      if (t.auctionType === "Vickrey") return maxBid;
+    }
     const frac = (t.bagTotal + 1) / t.totalAuctions();
     if (maxBid > 0 && frac > 1 / 3 && (this.p.bidCapFrac > 0 || this.p.lateReserve > 0 || this.p.marketCap > 0)) {
       let cap = maxBid;
