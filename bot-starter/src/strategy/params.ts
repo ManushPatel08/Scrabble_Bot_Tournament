@@ -116,7 +116,7 @@ export const DEFAULT_PARAMS: Params = {
   mcValuation: 1,
   faceMult: 2,
   faceAdd: 1,
-  samples: 48,
+  samples: 96,
   winPrior: 0.35,
   winPriorWeight: 10,
   winPriorScale: 0,

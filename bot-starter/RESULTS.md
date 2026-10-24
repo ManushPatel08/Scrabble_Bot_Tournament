@@ -51,6 +51,75 @@ What the first live matches found, and the fixes:
    0s. Each match's participants now have their own subscription; the
    end-of-match summaries show real opponent scores again.
 
+## Live opponents and the tournament phases (2026-10-23)
+
+**The strongest live opponent.** "bot" (id 7) beat LetterShark in 3 of
+their first 12 lobby meetings, once 281-94 (match 80). Its public winning
+bids (`auction_top_bid_archive`, 15 matches) show its pattern:
+- It bids about **20% of its current balance on almost every letter**:
+  13-17 for common letters, 30-45 for J, Q, Y, Z.
+- In Vickrey that wins many letters at the runner-up's (often our) much
+  lower price, and the word rewards refill its balance.
+- It wastes almost nothing: 98% of the letters it won ended up in its
+  words. LetterShark's rate is similar, 97%.
+
+In match 80 LetterShark fell behind early. Expecting to win little, it
+valued letters near zero, and from round 55 it bid 1 on everything with
+47 currency left.
+
+`sim/baselines/live.ts` models it as "botlike": a balance share per letter,
+taken from those bids, plus our word engine. Against it (200 matches per
+cell, `62-botlike.md`, `63-leadertax-multi.md`):
+
+| Variant | livelobby-v win / margin | duelbot-v win / margin | strongbot-v win / rank | self-v win / rank |
+|---|---|---|---|---|
+| **final** | **94.5% / +139** | **89.5% / +169** | **38.5% / 2.09** | 21.0% / 3.27 |
+| money cheaper (mu0 0.3) | 71.5% / +76 | 58.5% / +24 | 17.0% / 2.83 | |
+| stickier win-share prior (weight 40) | 94.5% / +131 | 90.0% / +174 | 38.0% / 2.13 | |
+| faster spend-down (pace 0.05) | 86.0% / +72 | 48.0% / −19 | 29.0% / 2.14 | |
+| all three, milder | 84.0% / +77 | 58.5% / +16 | 24.0% / 2.46 | |
+| leader tax 0.85 in every match | 93.5% / +143 | | 28.0% / 2.29 | 15.5% / 3.65 |
+| leader tax 0.6 in every match | 94.5% / +134 | | 37.0% / 1.97 | 21.5% / 3.29 |
+
+Spending more or faster loses heavily, and a multi-bot leader tax is
+neutral at best. The final settings stay. The real "bot" sizes its bids
+to its rack, unlike the model, so the live head-to-head (9-3) is the
+better guide. Three of its wins came while the simulator was loading
+this machine.
+
+**The final (best of 3 two-bot games, aggregate score).** 200 duels per
+cell, Vickrey (`61-duel-denial-tax.md`):
+
+| Variant | vs v7 | vs final | vs denier |
+|---|---|---|---|
+| **final (leader tax 0.85 in duels)** | **72.5%** | **56.5%** | **67.0%** |
+| no leader tax | 45.5% | 24.0% | 47.5% |
+| leader tax 1.0 | 66.0% | 48.5% | 62.0% |
+| zero-sum denial 0.5 | 65.5% | 51.5% | 59.5% |
+| zero-sum denial 1.0 | 65.0% | 38.5% | 58.0% |
+
+The leader tax is the single largest factor in duels. Valuing letters by
+what they'd give the opponent, the zero-sum view, hurts.
+
+**More Monte Carlo samples: adopted.** 96 samples instead of 48, 400 matches per cell on a fresh seed (`65-samples-confirm.md`; `64-samples-horizon.md` at 200 found the same):
+
+| Samples | league-v win / rank | strongbot-v win / rank | duel7-v win / margin | self-v win / rank | base-v win |
+|---|---|---|---|---|---|
+| 48 (before) | 44.3% / 1.88 | 34.0% / 2.08 | 67.3% / +43 | 16.3% / 3.52 | 98.5% |
+| **96 (final)** | **45.3% / 1.83** | **39.8% / 1.97** | **74.0% / +60** | **21.3% / 3.25** | **99.5%** |
+
+It is better in every field. A longer horizon (30 future letters instead of 20) added nothing. Decision latency with 96 samples: decideBid p99 22 ms, max 42 ms (`node sim/latency.ts 40`). The precompute, p99 0.31 s, runs in slices.
+
+**Latency on the live server.** Per-round instrumentation:
+- Auction messages arrive steadily: about 70 ms of jitter, with our clock
+  about 0.5 s behind the server's.
+- The network round trip to maincloud is about 100 ms.
+- Reducer replies took 450-900 ms only while the simulator kept 20 threads
+  busy on the same machine. That is enough to land bids after a 1 s auction
+  closes, and to lose final-round words ("Match not running").
+
+So nothing else may run on the bot's machine during the tournament.
+
 ## Tournament module re-validation
 
 On 2026-10-21 upstream replaced the Rust module with a TypeScript "Calhacks"

@@ -50,7 +50,7 @@ Options:
 - `--matches N`
 - `--mode vickrey|first|both`
 - `--seed S`
-- `--workers W` (defaults to the core count minus 2)
+- `--workers W` (defaults to the core count minus 2; `SIM_WORKERS=N` sets it for every tool)
 - `--timings` (adds latency columns)
 
 A seat is written `name` or `name:label`. The label lets two copies of one
@@ -63,6 +63,7 @@ Strategy names:
 - `aggr`, `cons`, `nocash`: style variants
 - `starter`, `greedy`, `overbidder`, `hoarder`, `random`: baselines
 - `clone`, `shadow`, `denier`, `snowball`, `late`, `outbid`, `jitter`: strong adversaries (our agent plus one exploit); `sniper`, `allin`: held-out styles
+- `botlike`, `botlike-lo`, `botlike-hi`: the strongest live opponent (sim/baselines/live.ts), at 1, 0.7 and 1.4 times its bids
 - `cheapo-sim`, `valor-sim`, `brutus-sim`: the module's own sims
 
 Other tools:
@@ -154,6 +155,18 @@ Options:
 - `-NoLobby`: skip casual lobbies.
 - `-NoTournament`: don't register for tournaments.
 - `-Quiet`: one log line per match.
+- `-FromClipboard`: take the token from the clipboard, where
+  `npm run get-token` puts it, and clear the clipboard. The token is never
+  displayed.
+- `-LogFile logs\name.log`: also append timestamped log lines to a file.
+  The token is never logged, and `logs/` is gitignored.
+
+Tournament day, in a window of its own:
+
+```powershell
+npm run get-token
+powershell -ExecutionPolicy Bypass -File .\run.ps1 -BotName LetterShark -FromClipboard -NoLobby -LogFile logs\tournament.log
+```
 
 **Any shell.**
 

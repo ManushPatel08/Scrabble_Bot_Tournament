@@ -89,6 +89,9 @@ export const VERSIONS: Record<string, Params> = {
   //        Under the tournament module's rules (random ties, jittered sims)
   //        first-price uses the same money price as Vickrey (mu0 0.5): the
   //        cheaper 0.35 lost in the league and baseline fields (RESULTS.md).
+  //        2026-10-23: 96 Monte Carlo samples instead of 48 (better in all
+  //        five fields at 400 matches each, RESULTS.md; decisions stay
+  //        well inside the live window).
   //        Shipped by src/strategy.ts.
   final: {
     ...COMMON,
@@ -100,7 +103,7 @@ export const VERSIONS: Record<string, Params> = {
     duelMuTimeExp: 1,
     cashTiming: 0,
     paceRate: 0.01,
-    samples: 48,
+    samples: 96,
     fpPlus: 1,
     leaderTaxDuel: 0.85,
   },
