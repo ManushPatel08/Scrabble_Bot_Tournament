@@ -166,3 +166,33 @@ test("subscribes only to its own slice of the big tables", () => {
   // Nothing global except the small tables.
   assert.deepEqual([...BASE_QUERIES].map((q) => q.replace("SELECT * FROM ", "")), ["bot_credential", "bot", "tournament"]);
 });
+
+test("waits for a match's participants before starting its session, then bids", () => {
+  const server = new FakeServer(42n, "Vickrey", SIMS, 7);
+  const ready = new Set<bigint>();
+  const queue: (() => void)[] = [];
+  const bot = new LiveBot(server, {
+    name: "test",
+    index: sharedIndex(),
+    autoLobby: false,
+    autoRegister: false,
+    logRounds: false,
+    log: () => {},
+    defer: (f) => queue.push(f),
+    participantsReady: (m) => ready.has(m),
+  });
+  server.bots_.push(bot);
+  const drain = () => {
+    while (queue.length) queue.shift()!();
+  };
+  assert.ok(bot.onApplied(ME_IDENTITY));
+  server.start(0);
+  drain();
+  assert.equal(bot.sessions.size, 0, "no session before the participants are in");
+  assert.equal(server.bidCalls.size, 0);
+  ready.add(server.matchId);
+  bot.onMatchReady(server.matchId);
+  drain();
+  assert.equal(bot.sessions.size, 1);
+  assert.equal(server.bidCalls.size, 1, "bids on the auction that was already open");
+});

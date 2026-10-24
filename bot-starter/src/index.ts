@@ -18,7 +18,7 @@ import { DbConnection, type ErrorContext } from "./module_bindings/index.js";
 import { Identity } from "spacetimedb";
 import { sharedIndex } from "./game/dictionary.ts";
 import { LiveBot, type LiveConn } from "./live/adapter.ts";
-import { BASE_QUERIES, botQueries } from "./live/queries.ts";
+import { BASE_QUERIES, botQueries, matchQueries } from "./live/queries.ts";
 
 const HOST = process.env.STDB_HOST ?? "https://maincloud.spacetimedb.com";
 const DB_NAME = process.env.STDB_DB ?? "scrabblebot";
@@ -37,6 +37,8 @@ let bot: LiveBot | null = null;
 let tickTimer: ReturnType<typeof setInterval> | null = null;
 let retryMs = 1000;
 let stopping = false;
+/** Per-match participant subscriptions on the current connection (src/live/queries.ts). */
+let matchSubs = new Map<bigint, { ready: boolean; handle: { unsubscribe(): void } | null }>();
 
 /**
  * Stop for good with an exit code (2 = configuration error, which run.ps1
@@ -67,9 +69,39 @@ function onConnect(conn: DbConnection, identity: Identity, _token: string) {
       logRounds: process.env.LOG_ROUNDS !== "0",
       log,
       defer: (f) => setImmediate(f),
+      participantsReady: (m) => matchSubs.get(m)?.ready === true,
     });
   }
   const b = bot;
+  matchSubs = new Map(); // subscriptions don't survive a reconnect
+  let myBotId: bigint | null = null;
+
+  /** Subscribe to a match's participants; the session starts once they're in. */
+  const watchMatch = (matchId: bigint) => {
+    if (matchSubs.has(matchId) || conn.db.matchState.id.find(matchId)?.status.tag === "Ended") return;
+    const entry: { ready: boolean; handle: { unsubscribe(): void } | null } = { ready: false, handle: null };
+    matchSubs.set(matchId, entry);
+    entry.handle = conn
+      .subscriptionBuilder()
+      .onApplied(() => {
+        entry.ready = true;
+        b.onMatchReady(matchId);
+      })
+      .onError(subscriptionFailed(`match ${matchId} participants`))
+      .subscribe(matchQueries(matchId));
+  };
+  /** Drop a finished match's participants a little later (after the end-of-match summary). */
+  const unwatchMatch = (matchId: bigint) =>
+    setTimeout(() => {
+      const entry = matchSubs.get(matchId);
+      if (!entry) return;
+      matchSubs.delete(matchId);
+      try {
+        entry.handle?.unsubscribe();
+      } catch {
+        // already gone with the connection
+      }
+    }, 15_000);
 
   // Never subscribeToAllTables(): the live database holds every match ever
   // played and would exhaust the heap (src/live/queries.ts). First the small
@@ -84,10 +116,12 @@ function onConnect(conn: DbConnection, identity: Identity, _token: string) {
         fatal(conn, 2, "this token is not a credential for any bot — get a fresh one with 'npm run get-token'");
         return;
       }
+      myBotId = cred.botId;
       conn
         .subscriptionBuilder()
         .onApplied(() => {
           if (!b.onApplied(identity)) return;
+          for (const p of conn.db.matchParticipant.iter()) if (p.botId === myBotId) watchMatch(p.matchId);
           log(`acting as bot '${conn.db.bot.id.find(b.myBotId!)?.name ?? "?"}' (id ${b.myBotId})`);
           if (tickTimer) clearInterval(tickTimer);
           tickTimer = setInterval(() => b.tick(), 3000);
@@ -98,11 +132,17 @@ function onConnect(conn: DbConnection, identity: Identity, _token: string) {
     .onError(subscriptionFailed("base"))
     .subscribe([...BASE_QUERIES]);
 
-  conn.db.matchParticipant.onInsert((_ctx, p) => b.onParticipantInsert(p));
+  conn.db.matchParticipant.onInsert((_ctx, p) => {
+    if (p.botId === myBotId) watchMatch(p.matchId);
+    b.onParticipantInsert(p);
+  });
   conn.db.auction.onInsert((_ctx, a) => b.onAuctionInsert(a));
   conn.db.auctionResult.onInsert((_ctx, r) => b.onResultInsert(r));
   conn.db.wordPlay.onInsert((_ctx, w) => b.onWordInsert(w));
-  conn.db.matchState.onUpdate((_ctx, old, neu) => b.onMatchUpdate(old, neu));
+  conn.db.matchState.onUpdate((_ctx, old, neu) => {
+    b.onMatchUpdate(old, neu);
+    if (neu.status.tag === "Ended" && old.status.tag !== "Ended") unwatchMatch(neu.id);
+  });
   conn.db.tournament.onInsert((_ctx, t) => b.onTournamentChange(t));
   conn.db.tournament.onUpdate((_ctx, _old, t) => b.onTournamentChange(t));
   conn.db.tournamentEntry.onInsert((_ctx, e) => b.onEntryChange(e));

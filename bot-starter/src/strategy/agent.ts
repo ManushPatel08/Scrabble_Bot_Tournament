@@ -210,27 +210,45 @@ export class Agent implements Policy {
    * only does lookups when the rack hasn't changed.
    */
   prepareNext(): void {
+    for (const _ of this.prepareSteps()) {
+      // run to completion (simulator, latency harness)
+    }
+  }
+
+  /**
+   * prepareNext() in slices: yields after each unit of work (one letter's
+   * value) so the live client can hand the event loop back to incoming
+   * messages, and drop the rest if the next auction arrives first. The
+   * result is stored only once every slice has run. On 2026-10-23 the
+   * single-block version (p99 ~0.4 s, longer under load) held up the next
+   * auction's message long enough for bids to arrive after it closed.
+   */
+  *prepareSteps(): Generator<void, void, void> {
     const t = this.t;
     if (!this.lastRack || t.isFinalAuction()) return;
-    const rack = this.lastRack;
+    const rack = this.lastRack.slice();
     const nextIsFinal = t.bagTotal === 1;
     const savedBag = t.bagTotal;
     // Pretend one more tile has been drawn so futureCount() sees next round.
     t.bagTotal -= 1;
     this.sampleFutures();
     t.bagTotal = savedBag;
+    const futures = this.futures;
+    yield;
     let values: number[] | null = null;
     if (!nextIsFinal && this.p.mcValuation) {
       const base = this.expectedValue(rack);
+      yield;
       values = new Array<number>(N_LETTERS);
       for (let c = 0; c < N_LETTERS; c++) {
         rack[c]!++;
         values[c] = Math.max(0, this.expectedValue(rack) - base);
         rack[c]!--;
+        yield;
       }
     }
-    const partition = nextIsFinal ? this.idx.bestPartition(rack, 2, 300_000, 400).words : null;
-    this.prepared = { key: rackKey(rack), futures: this.futures, values, partition };
+    const partition = nextIsFinal ? this.idx.bestPartition(rack, 2, 300_000, 250).words : null;
+    this.prepared = { key: rackKey(rack), futures, values, partition };
   }
 
   // ---------------------------------------------------------------- futures

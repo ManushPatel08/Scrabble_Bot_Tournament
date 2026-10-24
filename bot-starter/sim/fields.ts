@@ -34,6 +34,13 @@ export const FIELDS: Record<string, Field> = {
   "duel-v": { name: "duel-v", auctionType: "Vickrey", opponents: ["v6"] },
   "duel-f": { name: "duel-f", auctionType: "FirstPrice", opponents: ["v6"] },
   "duelself-v": { name: "duelself-v", auctionType: "Vickrey", opponents: ["agent"] },
+  // The bracket's last two play a best-of-3 final decided on aggregate score
+  // (tournament.ts:341-372), so duels against strong styles matter most.
+  "duel7-v": { name: "duel7-v", auctionType: "Vickrey", opponents: ["v7"] },
+  "duelfin-v": { name: "duelfin-v", auctionType: "Vickrey", opponents: ["final"] },
+  "duelshadow-v": { name: "duelshadow-v", auctionType: "Vickrey", opponents: ["shadow"] },
+  "dueldenier-v": { name: "dueldenier-v", auctionType: "Vickrey", opponents: ["denier"] },
+  "duelaggr-v": { name: "duelaggr-v", auctionType: "Vickrey", opponents: ["aggr"] },
 };
 
 /** Batch spec for `cand` in a field (sampled fields draw its 5 opponents per match). */

@@ -116,6 +116,13 @@ export interface LiveOptions {
   log: (...a: unknown[]) => void;
   /** Schedules work after the current transaction's callbacks (setImmediate live). */
   defer: (f: () => void) => void;
+  /**
+   * Whether every participant row of a match is in the cache yet (the live
+   * client subscribes to each match's participants separately; see
+   * src/live/queries.ts). A session starts only once this is true; the client
+   * then calls onMatchReady(). Omitted = always ready.
+   */
+  participantsReady?: (matchId: bigint) => boolean;
 }
 
 interface PendingResult { auctionId: bigint; letter: string; winner: bigint | null; paid: number; round: number }
@@ -142,6 +149,10 @@ interface Session {
 
 /** Below this auction window the between-round precompute is skipped. */
 const MIN_PREPARE_WINDOW_MS = 800;
+/** Longest stretch of precompute between yields to incoming messages. */
+const PREPARE_SLICE_MS = 15;
+/** An auction message that waited longer than this in our queue is logged even with LOG_ROUNDS=0. */
+const SLOW_QUEUE_MS = 150;
 
 /** Fire a reducer call; reducers return a promise that rejects on reducer errors. */
 function fire(log: LiveOptions["log"], what: string, call: () => unknown, onError?: () => void): void {
@@ -229,9 +240,19 @@ export class LiveBot {
     // result, sims' word plays, balances) has been applied.
     if (a.status.tag !== "Open") return;
     this.pendingOpens++;
+    const receivedAt = performance.now();
     this.o.defer(() => {
       this.pendingOpens--;
-      this.guard(`auction ${a.id}`, () => this.onAuctionOpen(a.id, a.matchId, a.letter, windowMs(a)));
+      this.guard(`auction ${a.id}`, () => this.onAuctionOpen(a.id, a.matchId, a.letter, windowMs(a), receivedAt));
+    });
+  }
+
+  /** A match's participant rows have all arrived: handle its open auction, if any. */
+  onMatchReady(matchId: bigint): void {
+    this.guard(`match ${matchId} ready`, () => {
+      for (const a of this.conn.db.auction.iter()) {
+        if (a.matchId === matchId && a.status.tag === "Open") this.onAuctionOpen(a.id, a.matchId, a.letter, windowMs(a));
+      }
     });
   }
 
@@ -283,13 +304,21 @@ export class LiveBot {
    * a concurrent match's bid is never delayed), skipped if this match has
    * moved on to a newer auction, or if the auction window is too short.
    */
-  private schedulePrepare(sess: Session, auctionId: bigint, tries = 0): void {
+  private schedulePrepare(sess: Session, auctionId: bigint): void {
     if (sess.auctionMs < MIN_PREPARE_WINDOW_MS) return;
-    this.o.defer(() => {
-      if (sess.lastAuction !== auctionId || !this.sessions.has(sess.matchId)) return;
-      if (this.pendingOpens > 0 && tries < 50) return this.schedulePrepare(sess, auctionId, tries + 1);
-      this.guard("prepareNext", () => sess.agent.prepareNext());
-    });
+    const steps = sess.agent.prepareSteps();
+    const slice = () =>
+      this.o.defer(() => {
+        // Abandon it once the match has moved on or another auction waits:
+        // a decision always beats a precompute.
+        if (sess.lastAuction !== auctionId || !this.sessions.has(sess.matchId) || this.pendingOpens > 0) return;
+        this.guard("prepareNext", () => {
+          const t0 = performance.now();
+          while (performance.now() - t0 < PREPARE_SLICE_MS) if (steps.next().done) return;
+          slice(); // more to do: yield to I/O first
+        });
+      });
+    slice();
   }
 
   // ------------------------------------------------------------ tournaments
@@ -451,12 +480,14 @@ export class LiveBot {
     s.pendingWords = [];
   }
 
-  onAuctionOpen(auctionId: bigint, matchId: bigint, letter: string, window?: number): void {
+  onAuctionOpen(auctionId: bigint, matchId: bigint, letter: string, window?: number, receivedAt?: number): void {
     if (this.myBotId === null) return;
     const db = this.conn.db;
+    const start = performance.now();
     let s = this.sessions.get(matchId);
     if (!s) {
       if (!this.myMatches.has(matchId)) return;
+      if (this.o.participantsReady && !this.o.participantsReady(matchId)) return; // onMatchReady() comes back
       s = this.startSession(matchId, window) ?? undefined;
       if (!s) return;
     } else if (window !== undefined) s.auctionMs = window;
@@ -491,11 +522,14 @@ export class LiveBot {
     for (const word of decision.words) fire(this.o.log, `word ${word}`, () => this.conn.reducers.submitWord({ matchId, word }));
     if (decision.bid > 0) bid(decision.bid);
     const ms = performance.now() - t0;
-    if (this.o.logRounds) {
+    // Time the auction's message waited in our queue before this decision.
+    const waited = receivedAt === undefined ? 0 : start - receivedAt;
+    if (this.o.logRounds || waited > SLOW_QUEUE_MS) {
       this.o.log(
         `m${matchId} r${round} bag ${m.bagTotal} '${letter}' bid ${decision.bid}` +
           (decision.words.length ? ` play ${decision.words.join(",")}` : "") +
-          ` (${ms.toFixed(1)} ms)`,
+          ` (${ms.toFixed(1)} ms${receivedAt === undefined ? "" : `, waited ${waited.toFixed(0)} ms`})` +
+          (waited > SLOW_QUEUE_MS ? " SLOW" : ""),
       );
     }
     // Use the rest of the window for next round's heavy lifting.
