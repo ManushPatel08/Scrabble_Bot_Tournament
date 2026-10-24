@@ -46,6 +46,10 @@ export const FIELDS: Record<string, Field> = {
   "strongbot-v": { name: "strongbot-v", auctionType: "Vickrey", opponents: ["botlike", "botlike-hi:botlike2", "botlike-lo", "v7", "agent"] },
   // A table of aggressive human-style bots and no sims, like a Swiss round.
   "aggrtable-v": { name: "aggrtable-v", auctionType: "Vickrey", opponents: ["aggr", "aggr:aggr2", "botlike", "botlike-hi:bl2", "v7"] },
+  // Like the live lobby on 2026-10-23: six real bots, no sims; 5 rivals
+  // sampled per match from aggressive, balance-share, patient and
+  // conservative styles.
+  "humans-v": { name: "humans-v", auctionType: "Vickrey", opponents: ["botlike", "botlike-lo", "botlike-hi", "aggr", "cons", "v7", "agent", "late", "snowball", "nocash"], sample: true },
   "dueldenier-v": { name: "dueldenier-v", auctionType: "Vickrey", opponents: ["denier"] },
   "duelaggr-v": { name: "duelaggr-v", auctionType: "Vickrey", opponents: ["aggr"] },
 };

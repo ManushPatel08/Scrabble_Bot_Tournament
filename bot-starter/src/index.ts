@@ -53,6 +53,13 @@ const fmt = (a: unknown[]) =>
           : JSON.stringify(x, (_k, v) => (typeof v === "bigint" ? v.toString() : v)),
     )
     .join(" ");
+/** BOT_PARAMS: JSON parameter overrides, e.g. {"priorByRivals":1} (for live trials). */
+let PARAMS: Record<string, number> = {};
+try {
+  PARAMS = process.env.BOT_PARAMS ? (JSON.parse(process.env.BOT_PARAMS) as Record<string, number>) : {};
+} catch {
+  console.error(`[${BOT_NAME}] BOT_PARAMS is not valid JSON; using the shipped configuration`);
+}
 const log = (...a: unknown[]) => {
   console.log(`[${BOT_NAME}]`, ...a);
   toFile(`[${BOT_NAME}] ${fmt(a)}`);
@@ -99,6 +106,7 @@ function onConnect(conn: DbConnection, identity: Identity, _token: string) {
       log,
       defer: (f) => setImmediate(f),
       participantsReady: (m) => matchSubs.get(m)?.ready === true,
+      params: PARAMS,
     });
   }
   const b = bot;
@@ -189,7 +197,7 @@ function reconnect(why: string) {
 }
 
 function main() {
-  log(`connecting to ${DB_NAME} at ${HOST}`);
+  log(`connecting to ${DB_NAME} at ${HOST}${Object.keys(PARAMS).length ? ` with BOT_PARAMS ${JSON.stringify(PARAMS)}` : ""}`);
   DbConnection.builder()
     .withUri(HOST)
     .withDatabaseName(DB_NAME)

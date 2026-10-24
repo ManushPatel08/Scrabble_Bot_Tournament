@@ -21,6 +21,31 @@ export interface Params {
    * run dry we will win most of what is left, and the other way round.
    */
   moneyShareWeight: number;
+  /**
+   * 0 = off. Otherwise the prior share of future auctions is
+   * priorByRivals / (1 + active non-sim opponents): about 1/6 at a table of
+   * six real bots, 1/2 against one rival and four sims (the module's sims
+   * rarely contest a wanted letter). Live all-human tables (2026-10-23):
+   * LetterShark won about 15% of auctions, not the fixed 35% prior, so it
+   * overvalued speculative letters early and ran out of money.
+   */
+  priorByRivals: number;
+  /**
+   * 0 = off. In the first two thirds of a match, cap a bid at this share of
+   * the balance unless the letter is worth more right now (words playable
+   * with it today). Live 2026-10-23: LetterShark bid 55 of 100 on a round-2
+   * Z, and 28 on a round-6 K, then ran dry before its words completed.
+   */
+  bidCapFrac: number;
+  /**
+   * 0 = off. Coins to keep for the last third of the match: before it, a bid
+   * may not take the balance below lateReserve, scaled down linearly to 0 as
+   * the last third begins, unless the letter is worth that much right now
+   * (words playable with it today). Live all-human tables (786 player-matches,
+   * 2026-10-23): letters won in the last third were the strongest predictor
+   * of place (8+ late letters: 43% wins; 0-1: 4%).
+   */
+  lateReserve: number;
   /** Cap on future letters per sample (keeps evaluation cheap). */
   horizonCap: number;
   /**
@@ -127,6 +152,9 @@ export const DEFAULT_PARAMS: Params = {
   winPriorWeight: 10,
   winPriorScale: 0,
   moneyShareWeight: 0,
+  priorByRivals: 0,
+  bidCapFrac: 0,
+  lateReserve: 0,
   horizonCap: 20,
   futureBias: 0,
   trackBag: 1,

@@ -260,7 +260,12 @@ export class Agent implements Policy {
     const t = this.t;
     const done = t.history.length;
     const active = t.activeN();
-    const prior = this.p.winPriorScale && active > 6 ? (this.p.winPrior * 6) / active : this.p.winPrior;
+    let prior = this.p.winPriorScale && active > 6 ? (this.p.winPrior * 6) / active : this.p.winPrior;
+    if (this.p.priorByRivals > 0) {
+      let rivals = 0;
+      for (let j = 0; j < t.n; j++) if (j !== t.seat && !t.inactive(j) && !t.sims[j]) rivals++;
+      prior = Math.min(0.9, this.p.priorByRivals / (1 + rivals));
+    }
     const hist = (t.wins[t.seat]! + prior * this.p.winPriorWeight) / (done + this.p.winPriorWeight);
     const w = this.p.moneyShareWeight;
     const bal = this.lastBalances;
@@ -477,7 +482,25 @@ export class Agent implements Policy {
     this.lastValue = own;
     const value = own + this.denialValue(letter, scores);
     const reservation = value / this.mu(balance); // currency we'd pay at most
-    const maxBid = value > 0 ? Math.min(balance, Math.floor(reservation)) : 0;
+    let maxBid = value > 0 ? Math.min(balance, Math.floor(reservation)) : 0;
+    const frac = (t.bagTotal + 1) / t.totalAuctions();
+    if (maxBid > 0 && frac > 1 / 3 && (this.p.bidCapFrac > 0 || this.p.lateReserve > 0)) {
+      let cap = maxBid;
+      if (this.p.bidCapFrac > 0) cap = Math.min(cap, Math.floor(this.p.bidCapFrac * balance));
+      if (this.p.lateReserve > 0) {
+        const reserve = this.p.lateReserve * Math.min(1, (frac - 1 / 3) * 1.5);
+        cap = Math.min(cap, Math.floor(balance - reserve));
+      }
+      cap = Math.max(1, cap);
+      if (maxBid > cap) {
+        // Allow what the letter is worth today: words playable with it now.
+        const before = this.idx.greedyValue(rack, 2);
+        rack[letter]!++;
+        const now = Math.max(0, this.idx.greedyValue(rack, 2) - before);
+        rack[letter]!--;
+        maxBid = Math.max(cap, Math.min(maxBid, Math.floor(now / this.mu(balance))));
+      }
+    }
     if (t.auctionType === "Vickrey") {
       // A bid equal to the top sim's can't win (sims win ties, lib.rs:2142)
       // but makes that sim pay its full bid instead of the runner-up's.

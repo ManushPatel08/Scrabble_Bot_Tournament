@@ -11,6 +11,7 @@ import type { WordIndex } from "../game/dictionary.ts";
 import { type Counts, countsToString, emptyCounts, letterIndex } from "../game/letters.ts";
 import type { AuctionType, SimStrategy } from "../game/types.ts";
 import type { Agent } from "../strategy/agent.ts";
+import type { Params } from "../strategy/params.ts";
 import { createAgent } from "../strategy.ts";
 
 type Tag<T extends string> = { tag: T };
@@ -123,6 +124,8 @@ export interface LiveOptions {
    * then calls onMatchReady(). Omitted = always ready.
    */
   participantsReady?: (matchId: bigint) => boolean;
+  /** Parameter overrides on top of the shipped configuration (BOT_PARAMS). */
+  params?: Partial<Params>;
 }
 
 interface PendingResult { auctionId: bigint; letter: string; winner: bigint | null; paid: number; round: number }
@@ -429,7 +432,7 @@ export class LiveBot {
     for (const w of words) if (w.botId === this.myBotId) for (const ch of w.word) dealt[letterIndex(ch)]!++;
     for (let c = 0; c < 26; c++) dealt[c] = Math.max(0, dealt[c]!);
 
-    const agent = createAgent(this.o.name, this.o.index);
+    const agent = createAgent(this.o.name, this.o.index, this.o.params ?? {});
     agent.onMatchStart({
       seat,
       nPlayers: parts.length,
