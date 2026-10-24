@@ -283,6 +283,9 @@ export interface Params {
   completionFloor: number;
   completionSlope: number;
   completionLate: number;
+  /** Proportional completion floor (head-to-head analysis): at least min(completionCap, completionFrac x reward) on a letter that completes a 7+ word (0 = off). */
+  completionFrac: number;
+  completionCap: number;
   cashThreshA: number;
   cashThreshB: number;
   /** Always cash when this few usable auctions remain (the hold has no future). */
@@ -417,6 +420,8 @@ export const DEFAULT_PARAMS: Params = {
   completionFloor: 0,
   completionSlope: 1,
   completionLate: 10,
+  completionFrac: 0,
+  completionCap: 25,
   cashThreshA: 0,
   cashThreshB: 0,
   cashThreshMinLeft: 4,

@@ -821,7 +821,7 @@ export class Agent implements Policy {
         }
       }
       if (this.p.taxShade < 1 && this.taxed()) bid = Math.floor(bid * this.p.taxShade);
-      if (!t.isFinalAuction() && (this.p.consonantFloor3 > 0 || this.p.cheapCap > 0 || this.p.completionFloor > 0)) {
+      if (!t.isFinalAuction() && (this.p.consonantFloor3 > 0 || this.p.cheapCap > 0 || this.p.completionFloor > 0 || this.p.completionFrac > 0)) {
         const face = LETTER_VALUES[letter]!;
         rack[letter]!++;
         const sig7 = this.idx.bestRewardSig(rack, 7);
@@ -831,6 +831,10 @@ export class Agent implements Policy {
         if (this.p.consonantFloor3 > 0 && frac > 1 - this.p.consonantPhase && (face === 3 || face === 4 || face === 5)) {
           const base = face === 3 ? this.p.consonantFloor3 : this.p.consonantFloor4;
           const floor = Math.round(base - this.p.consonantDup * rack[letter]!);
+          if (floor > bid) bid = Math.min(floor, balance);
+        }
+        if (this.p.completionFrac > 0 && completes) {
+          const floor = Math.floor(Math.min(this.p.completionCap, this.p.completionFrac * this.idx.sigReward[sig7]!));
           if (floor > bid) bid = Math.min(floor, balance);
         }
         if (this.p.completionFloor > 0 && completes) {

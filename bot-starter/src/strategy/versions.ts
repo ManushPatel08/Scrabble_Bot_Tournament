@@ -93,6 +93,8 @@ const COMMON: Params = {
   completionFloor: 0,
   completionSlope: 1,
   completionLate: 10,
+  completionFrac: 0,
+  completionCap: 25,
   cashThreshA: 0,
   cashThreshB: 0,
   cashThreshMinLeft: 4,

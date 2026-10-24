@@ -28,6 +28,8 @@ instruction. The originals are backed up in the Claude session scratchpad.
 A process watcher saw no Codex-spawned process at the 07:43 health slot.
 Do not reactivate them while Claude controls the bot.
 
+**Live trial 5 (from 14:40 PT, match #8286, launcher PID 122328):** A = `{"futureCountNoise":1}`, B = A + `{"cashThreshA":28,"cashThreshB":0.63}` (Nijello's fitted rule: auto-play a 7+ word only when reward >= 28 + 0.63 x balance; experiment 128 replay 2.41 vs 2.87, -0.46 +/- 0.10, with *fewer* letters bought). The user asked to finalise the strategy within about an hour and then rename the bot LetterSharkUltra; there is no rename reducer (only createTeam sets a bot name; startNewBotVersion resets the rating under the same name), so the rename is a fresh registration via replace-registration.ts after finalising. Gates as before; the early-rollback rules apply at 10/15 per arm. Shipping requires the duel check in sim/experiments/130-*.
+
 Current configuration (14:05 PT): **bot 95, standalone `BOT_PARAMS={"futureCountNoise":1}`, no A/B** (launcher PID 123372, start 2026-10-24T21:05:43.7487571Z, log `logs/manush4-live.log`). Live trial 4 (#3236 onward, B = rollout 48 samples) ended at 71 per arm: A 2.80 / 28% wins / 87, B 2.99 / 8% / 83, so B was rolled back (RESULTS.md "Live trial 4 verdict"). The rollout code stays in the tree, off by default, with `rolloutMinPlayers` 4 so it can never run in duels. The bot reconnected on its own after a network drop at 13:59 PT. Bot 86's log
 (`logs/retired-86-live.log` = `logs/manush3-live.log`) holds three
 trials, scored only with `--since`: trial 1 #2332-2563 (B =
