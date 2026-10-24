@@ -6,7 +6,7 @@ on branch `scrabblebot-bot`, merged with upstream's tournament version
 
 ## Status: live as LetterShark, waiting for the tournament
 
-**Right now (2026-10-23, 19:45 PT):** everything is done and the bot is **stopped** until the tournament. Start it Saturday evening (by about 10 PM PT, no later than 11:30 PM PT) with the commands under "Tournament day" below, and leave it running until the final ends. Lobby record before stopping: 24 wins in 32 matches; two of the losses were matches stopped midway for testing. The code is pushed to the private repo ManushPatel08/Cal_Hacks_Scrabble_Bot_Tournament (`main`); make it public after the final.
+**Right now (2026-10-24, 00:30 PT):** LetterShark runs in **tournament mode** (`run.ps1 -NewToken -NoLobby -LogFile logs	ournament.log`) in its own window, waiting to register; it plays no lobby games. Shipped config: `final` = 96 samples + priorByRivals 1.0, which beat every variant in live interleaved tests (RESULTS.md, Live trials). A 30-minute health check (this Claude Code session) restarts it if it stops. Do not run the simulator once registration opens.
 
 - **Event:** ScrabbleBot tournament, Cal Hacks 13.0, **12:00 AM Sunday**
   (Saturday night), live: Swiss rounds, a cut, elimination, then a
