@@ -767,6 +767,11 @@ the next live B.
 | 6-bot strong-bot table | **39.5% / 1.92 / 106** | 25.0% / 2.13 / 97 |
 | 6-bot mixed human-like pool | **33.0% / 2.19 / 94** | 22.5% / 2.35 / 90 |
 
+With per-table price adaptation (`rolloutPriceAdapt` 1) the duels improve
+but stay far behind the default (36.5% / -23 vs v7; 23.5% vs the default)
+and the strong six-bot tables get worse (11.5% / 2.65), so adaptation is
+rejected on this ground too.
+
 The rollout's prices and win share come from six-player tables. In a duel
 the real prices are far lower and we should win about half the auctions,
 so the planner's future me buys almost nothing, the pass branch looks
