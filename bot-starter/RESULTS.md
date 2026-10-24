@@ -301,6 +301,94 @@ checks passed in PowerShell 5.1 and 7 before the actual restart. A match
 resumed during startup is excluded from A/B scoring. Follow SESSION.md for
 the trial's first labelled match, minimum sample sizes, and stop/adopt rules.
 
+### Trial closure and requested replacement (2026-10-24 07:22 PT)
+
+The user explicitly requested a fresh replacement. The old bot was stopped
+at a match boundary, its public statistics and exact trial log archived,
+and its owner used the normal leave/create flow. No second bot was run and
+no team-membership restriction was bypassed. The current registration is
+**Manush2 / LetterSharkPro, team 78 / bot 84**. Preserve this identity;
+another replacement requires another explicit user request.
+
+The final archived bot 76 trial had **23 completed games per arm**:
+
+| Arm | Completed | Wins | Mean place | Mean score |
+|---|---:|---:|---:|---:|
+| A: shipped default | 23 | 4 | 3.04 | 80 |
+| B: futureCountNoise 1 | 23 | 5 | 3.17 | 79 |
+
+This is **inconclusive**, below the 25-per-arm minimum. Earlier favorable
+intermediate summaries do not replace the final tally. Archives are
+`logs/retired-76-registration.json` and `logs/retired-76-live.log`.
+The new bot runs standalone `BOT_PARAMS={"futureCountNoise":1}` with no
+active A/B, based on promising replay evidence, **not proven live adoption**.
+Shipped defaults and `VERSIONS.final` keep the new model off. Fresh rating
+and early match outcomes are not a before/after strategy comparison.
+
+The restart helper now restores saved A/B configuration on `-IfDown`, uses
+the current saved team/bot names, and supports an explicit `-StopOnly`
+maintenance path. A deliberate restart without ParamsA/ParamsB clears
+overrides; tournament mode also clears them. Historical data builders now
+resolve the actual own participant ID per match when retired registrations
+share a bot name. Do not drop old bot 76's data merely because bot 84 has
+the same name.
+
+### Experiment 106: protected completion cash — rejected
+
+Hypothesis: when liquidity is low, reserve the rack letters for a long
+word that specifically requires the auctioned tile, then cash words made
+only from spare letters. This differs from indiscriminately cashing short
+words, but still needs measured evidence. `protectedCashBelow` defaults to
+zero, and the live bot has not enabled it.
+
+Fixed dataset: 340 archived matches x 2 seeds. Every variant includes
+`futureCountNoise=1`, so the comparison isolates protected cash:
+
+| Threshold | Wins | Mean place | Mean score | Coins left |
+|---|---:|---:|---:|---:|
+| 0: configured baseline | 22.4% | 2.87 | 85.3 | 29.6 |
+| 10 | 22.6% | 2.86 | 85.3 | 29.4 |
+| 20 | 22.1% | 2.89 | 84.9 | 29.3 |
+| 40 | 20.1% | 3.00 | 82.8 | 28.6 |
+
+Paired mean-place changes, averaging seeds within each match:
+10: -0.009 +/- 0.016; 20: +0.015 +/- 0.029; 40: +0.132 +/- 0.055
+(approximate 95% intervals). The best setting is far below the required
+0.08 improvement; larger settings regress. **Reject; keep off; no live
+trial.** Raw report: `sim/experiments/106-protected-completion-cash.md`.
+
+### Second requested replacement and a fresh A/B (2026-10-24 07:40 PT)
+
+In a new Claude session, the user explicitly asked for another fresh
+LetterSharkPro. Bot 84 / team 78 (Manush2) was stopped at a match boundary
+after 15 matches with `futureCountNoise=1` alone (3 wins, total 1173,
+78.2 per match). That configuration ran without a control arm, so those
+matches are not evidence about the candidate. The normal leave/create flow
+created **Manush3 / LetterSharkPro, team 80 / bot 86**. Archives:
+`logs/retired-84-registration.json`, `logs/retired-84-live.log`.
+
+Bot 86 runs a fresh interleaved A/B from its first match (#2332): A is the
+shipped default, B is `futureCountNoise=1`. It is scored separately from the
+inconclusive bot 76 trial. The live gate has low power. With a per-match
+place SD of about 1.6, 45 matches per arm give a standard error of about
+0.34 on the difference, so the expected replay effect (about -0.1) cannot
+be confirmed live. Only a large effect in either direction can be.
+
+Field context at 07:42 PT, from public `bot_stats`, all-human bots with 10+
+matches, ranked by OpenSkill mu − 3σ:
+
+| Bot | Matches | Win % | Mean score |
+|---|--:|--:|--:|
+| Chinese Dante | 452 | 35 | 93.5 |
+| Nijello | 285 | 38 | 92.1 |
+| Doppio | 321 | 32 | 92.0 |
+| postturing | 56 | 30 | 85.9 |
+| our retired 61 / 70 / 76 | 94 / 90 / 95 | 19 / 21 / 20 | 82.6 / 80.1 / 81.1 |
+
+Our registrations have won about 20% of all-human matches, against 32-38%
+for the three leaders. Closing that gap needs a structural change, not
+another ±0.1-place parameter adjustment.
+
 ## Live opponents and the tournament phases (2026-10-23)
 
 **The strongest live opponent.** "bot" (id 7) beat LetterShark in 3 of

@@ -55,6 +55,7 @@ const COMMON: Params = {
   fpModel: 0,
   autoPlayLen: 7,
   wordLookahead: 0,
+  protectedCashBelow: 0,
   cashTiming: 0,
   cashMinLen: 4,
   taxShade: 1,

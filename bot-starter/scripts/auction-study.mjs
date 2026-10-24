@@ -12,7 +12,7 @@ const sql = async (q) => {
   return (await r.json())[0].rows;
 };
 const bots = new Map((await sql("SELECT id, name, is_simulated FROM bot")).map(([id, name, sim]) => [id, { name, sim }]));
-for (const [id, name] of [[61, "LetterSharkX (retired)"], [70, "LetterSharkPro (retired)"]]) bots.set(id, { name, sim: false });
+for (const [id, name] of [[61, "LetterSharkX (retired)"], [70, "LetterSharkPro (retired #70)"], [76, "LetterSharkPro (retired #76)"]]) bots.set(id, { name, sim: false });
 const ended = new Set((await sql("SELECT id, status FROM match_state")).filter(([, s]) => s[0] === 2).map(([id]) => id));
 const group = (rows) => {
   const out = new Map();

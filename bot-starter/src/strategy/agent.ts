@@ -506,6 +506,20 @@ export class Agent implements Policy {
       play(s);
     }
 
+    if (this.p.protectedCashBelow > 0 && balances[me]! < this.p.protectedCashBelow) {
+      const spare = rack.slice();
+      spare[t.currentLetter]!++;
+      const target = this.idx.bestRewardSig(spare, this.p.autoPlayLen);
+      if (target !== -1 && !this.idx.fits(rack, target)) {
+        this.idx.subtract(spare, target);
+        for (;;) {
+          const s = this.idx.bestRewardSig(spare, 2);
+          if (s === -1) break;
+          this.idx.subtract(spare, s);
+          play(s);
+        }
+      }
+    }
     if (!this.p.cashTiming) return words;
     // Cash a shorter word when its money is worth more than the expected
     // loss from committing its letters now.

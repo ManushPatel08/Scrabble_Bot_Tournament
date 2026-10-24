@@ -166,6 +166,8 @@ export interface Params {
   autoPlayLen: number;
   /** Score 7+ word choices by immediate cash plus this weight on future rack value (0 = greedy). */
   wordLookahead: number;
+  /** Below this balance, cash only spare tiles while preserving a long word completed by the current tile (0 = off). */
+  protectedCashBelow: number;
   /** 1 = cash shorter words when money is worth more than the lost flexibility. */
   cashTiming: number;
   /** Shortest word considered for early cashing. */
@@ -250,6 +252,7 @@ export const DEFAULT_PARAMS: Params = {
   fpModel: 0,
   autoPlayLen: 7,
   wordLookahead: 0,
+  protectedCashBelow: 0,
   cashTiming: 0,
   cashMinLen: 4,
   taxShade: 1,

@@ -11,7 +11,8 @@ const arg = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i === -
 const H = process.env.STDB_HOST ?? "https://maincloud.spacetimedb.com";
 const BOT = arg("bot", "LetterSharkPro");
 const SINCE = Number(arg("since", "1211"));
-const RETIRED = { LetterShark: 8, LetterSharkX: 61, LetterSharkPro: 70 };
+const RETIRED = { LetterShark: [8], LetterSharkX: [61], LetterSharkPro: [70, 76] };
+const registrations = fs.existsSync("logs/registration-history.json") ? JSON.parse(fs.readFileSync("logs/registration-history.json", "utf8")) : [];
 const LV = { A:1,B:3,C:3,D:2,E:1,F:4,G:2,H:4,I:1,J:8,K:5,L:1,M:3,N:1,O:1,P:3,Q:10,R:1,S:1,T:1,U:1,V:4,W:4,X:8,Y:4,Z:10 };
 
 // From our log: dealt rack, variant, and our bid per round.
@@ -26,13 +27,13 @@ for (const line of fs.readFileSync(arg("log", "logs/lobby.log"), "utf8").split("
 const { token } = await (await fetch(`${H}/v1/identity`, { method: "POST" })).json();
 const q = async (s) => { const r = await fetch(`${H}/v1/database/scrabblebot/sql`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: s }); return (await r.json())[0].rows; };
 const bots = new Map((await q("SELECT id, name FROM bot")).map(([i, n]) => [i, n]));
-const me = [...bots].find(([, n]) => n === BOT)?.[0] ?? RETIRED[BOT];
+const candidates = [[...bots].find(([, n]) => n === BOT)?.[0], ...(RETIRED[BOT] ?? []), ...registrations.filter((r) => r.botName === BOT).map((r) => r.botId)];
 
 const rows = [];
 for (const [mid, o] of [...ours].sort((a, b) => a[0] - b[0])) {
   if (mid < SINCE) continue;
   const parts = await q(`SELECT bot_id, score, balance FROM match_participant WHERE match_id = ${mid}`);
-  const matchMe = parts.some((p) => p[0] === me) ? me : RETIRED[BOT];
+  const matchMe = candidates.find((id) => parts.some((p) => p[0] === id));
   if (!parts.some((p) => p[0] === matchMe)) continue;
   const res = (await q(`SELECT auction_id, letter, winner_bot_id, paid FROM auction_result WHERE match_id = ${mid}`)).sort((a, b) => a[0] - b[0]);
   if (res.length < 60) continue; // unfinished

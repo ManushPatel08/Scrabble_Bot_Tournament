@@ -72,6 +72,27 @@ test("uncertain acquisition counts remain reproducible for a fixed match seed", 
   assert.deepEqual(agents[0]!.onAuction(view(6, "S")), agents[1]!.onAuction(view(6, "S")));
 });
 
+test("protected cash uses only spare tiles and preserves the completing long word", () => {
+  const idx = new WordIndex(["RETAIN", "RETAINS", "JO"]);
+  const decide = (balance: number, letter: string, bagTotal = 40) => {
+    const a = new Agent({ ...FINAL, futureCountNoise: 1, protectedCashBelow: 20, samples: 8 }, "protected", idx);
+    start(a, 6, [null, null, null, null, null, null], "Vickrey");
+    const rack = countsOf("RETAINJO");
+    const d = a.onAuction({ ...view(6, letter), rack, bagTotal, balances: [balance, 100, 100, 100, 100, 100] });
+    const after = rack.slice();
+    for (const word of d.words) for (const ch of word) after[letterIndex(ch)]!--;
+    assert.ok(after.every((n) => n >= 0));
+    assert.ok(d.bid <= balance + d.words.reduce((s, w) => s + wordReward(w), 0));
+    return { d, after };
+  };
+  const low = decide(5, "S");
+  assert.deepEqual(low.d.words, ["JO"]);
+  assert.deepEqual(low.after, countsOf("RETAIN"));
+  assert.deepEqual(decide(30, "S").d.words, []);
+  assert.deepEqual(decide(5, "Q").d.words, []);
+  assert.equal(decide(5, "S", 0).d.bid, 0);
+});
+
 test("experimental valuation and market floors stay affordable and skip the final tile", () => {
   for (const auctionType of ["Vickrey", "FirstPrice"] as const) {
     for (const params of [
@@ -81,6 +102,7 @@ test("experimental valuation and market floors stay affordable and skip the fina
       { wordLookahead: 1 }, { completionCredit: .25 },
       { winHistoryWindow: 12 }, { immediateValueWeight: .5 },
       { futureCountNoise: 1 },
+      { futureCountNoise: 1, protectedCashBelow: 20 },
     ]) {
       const a = new Agent({ ...FINAL, ...params, samples: 8 }, "experiment");
       start(a, 6, [null, null, null, null, null, null], auctionType);

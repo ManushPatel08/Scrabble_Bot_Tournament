@@ -17,7 +17,9 @@ const arg = (n, d) => {
   const i = process.argv.indexOf(`--${n}`);
   return i === -1 ? d : process.argv[i + 1];
 };
-const logFiles = arg("log", "logs/lobby.log,logs/codex-live.log").split(",").filter((p) => fs.existsSync(p));
+const activeLog = fs.existsSync("logs/runner-state.json") ? JSON.parse(fs.readFileSync("logs/runner-state.json", "utf8")).logFile : "";
+const defaultLogs = [...new Set(["logs/lobby.log", "logs/codex-live.log", activeLog].filter(Boolean))].join(",");
+const logFiles = arg("log", defaultLogs).split(",").filter((p) => fs.existsSync(p));
 const since = Number(arg("since", "257"));
 const out = arg("out", "sim/replay/matches.json");
 const host = process.env.STDB_HOST ?? "https://maincloud.spacetimedb.com";
@@ -40,7 +42,9 @@ const some = (opt) => (opt[0] === 0 ? opt[1] : null);
 const bots = new Map((await sql("SELECT id, name, is_simulated FROM bot")).map(([id, name, sim]) => [id, { name, sim }]));
 // Our retired bots are gone from the bot table (a team is deleted with its
 // last member), so their ids are kept here.
-const RETIRED = { LetterShark: 8, LetterSharkX: 61, LetterSharkPro: 70 };
+const RETIRED = { LetterShark: [8], LetterSharkX: [61], LetterSharkPro: [70, 76] };
+const registrations = fs.existsSync("logs/registration-history.json") ? JSON.parse(fs.readFileSync("logs/registration-history.json", "utf8")) : [];
+for (const r of registrations) if (!bots.has(r.botId)) bots.set(r.botId, { name: `${r.botName} (retired #${r.botId})`, sim: false });
 const ended = new Set((await sql(`SELECT id, status FROM match_state WHERE id >= ${since}`))
   .filter(([, status]) => status[0] === 2).map(([id]) => id));
 const group = (rows) => {
@@ -63,7 +67,8 @@ for (const [matchId, start] of [...starts].sort((a, b) => a[0] - b[0])) {
   if (matchId < since || !ended.has(matchId)) continue;
   const parts = (partsByMatch.get(matchId) ?? []).sort((a, b) => a[0] - b[0]);
   const current = [...bots].find(([, b]) => b.name === start.name)?.[0];
-  const me = [current, RETIRED[start.name]].find((id) => id !== undefined && parts.some((p) => p[1] === id));
+  const candidates = [current, ...(RETIRED[start.name] ?? []), ...registrations.filter((r) => r.botName === start.name).map((r) => r.botId)];
+  const me = candidates.find((id) => id !== undefined && parts.some((p) => p[1] === id));
   if (me === undefined) continue;
   if (parts.length < 2 || !parts.some((p) => p[1] === me)) continue;
   const res = (resultsByMatch.get(matchId) ?? []).sort((a, b) => a[0] - b[0]);

@@ -2,8 +2,10 @@
 # boundary. No token is read by this helper, written to disk, or displayed.
 param(
   [switch]$Tournament,
+  [string]$ParamsA,
   [string]$ParamsB,
-  [switch]$IfDown
+  [switch]$IfDown,
+  [switch]$StopOnly
 )
 $ErrorActionPreference = 'Stop'
 $botRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -11,9 +13,19 @@ Set-Location -LiteralPath $botRoot
 $stateFile = Join-Path $botRoot 'logs\runner-state.json'
 if (-not (Test-Path -LiteralPath $stateFile)) { throw 'Missing runner state; inspect processes before starting anything.' }
 $runner = Get-Content -LiteralPath $stateFile -Raw | ConvertFrom-Json
-if ($ParamsB -and -not $Tournament) {
-  $candidate = $ParamsB | ConvertFrom-Json
-  if (-not $candidate -or $ParamsB -match 'BOT_TOKEN|eyJ') { throw 'Invalid strategy overrides.' }
+$botName = if ($runner.botName) { $runner.botName } else { 'LetterSharkPro' }
+$teamName = if ($runner.teamName) { $runner.teamName } else { 'Manush' }
+if ($IfDown) {
+  if ($StopOnly) { throw 'Choose recovery or stop-only, not both.' }
+  if (-not $PSBoundParameters.ContainsKey('ParamsA')) { $ParamsA = $runner.paramsA }
+  if (-not $PSBoundParameters.ContainsKey('ParamsB')) { $ParamsB = $runner.paramsB }
+  if (-not $PSBoundParameters.ContainsKey('Tournament')) { $Tournament = [bool]$runner.tournamentMode }
+}
+foreach ($overrides in @($ParamsA, $ParamsB)) {
+  if ($overrides -and -not $Tournament) {
+    $candidate = $overrides | ConvertFrom-Json
+    if (-not $candidate -or $overrides -match 'BOT_TOKEN|eyJ') { throw 'Invalid strategy overrides.' }
+  }
 }
 $launcher = Get-Process -Id $runner.launcherPid -ErrorAction SilentlyContinue
 $snapshot = @(Get-CimInstance Win32_Process)
@@ -22,7 +34,7 @@ if ($launcher) {
   # PowerShell 7 converts ISO JSON timestamps to DateTime; 5.1 leaves strings.
   $expectedStart = ([datetime]$runner.processStartUtc).ToUniversalTime()
   if ($launcher.StartTime.ToUniversalTime() -ne $expectedStart -or
-      $rootInfo.CommandLine -notmatch 'run\.ps1' -or $rootInfo.CommandLine -notmatch 'LetterSharkPro') {
+      $rootInfo.CommandLine -notmatch 'run\.ps1' -or $rootInfo.CommandLine -notmatch [regex]::Escape($botName)) {
     throw 'Recorded PID no longer identifies this launcher; no processes stopped.'
   }
   if ($IfDown) { Write-Output 'Launcher is already running; no duplicate started.'; exit 0 }
@@ -60,14 +72,21 @@ if (-not $launcher) {
     if ($pidToStop -ne $runner.launcherPid) { Stop-Process -Id $pidToStop -ErrorAction SilentlyContinue }
   }
 }
+if ($StopOnly) {
+  $runner | Add-Member -NotePropertyName stoppedAtUtc -NotePropertyValue ([datetime]::UtcNow.ToString('o')) -Force
+  $runner | ConvertTo-Json | Set-Content -LiteralPath $stateFile
+  Write-Output "$botName stopped at a match boundary; no replacement process started."
+  return
+}
 Remove-Item Env:BOT_PARAMS,Env:BOT_PARAMS_B,Env:BOT_TOKEN,Env:AUTO_LOBBY,Env:AUTO_TOURNAMENT -ErrorAction SilentlyContinue
+if ($ParamsA -and -not $Tournament) { $env:BOT_PARAMS = $ParamsA }
 if ($ParamsB -and -not $Tournament) {
   $env:BOT_PARAMS_B = $ParamsB
 }
-$logFile = if ($Tournament) { 'logs\tournament.log' } else { 'logs\codex-live.log' }
-$launchArgs = @('-NoProfile','-ExecutionPolicy','Bypass','-File','.\run.ps1','-BotName','LetterSharkPro','-Team','Manush','-Bot','LetterSharkPro','-NewToken','-LogFile',$logFile)
+$logFile = if ($Tournament) { 'logs\tournament.log' } elseif ($runner.logFile) { $runner.logFile } else { 'logs\codex-live.log' }
+$launchArgs = @('-NoProfile','-ExecutionPolicy','Bypass','-File','.\run.ps1','-BotName',$botName,'-Team',$teamName,'-Bot',$botName,'-NewToken','-LogFile',$logFile)
 if ($Tournament) { $launchArgs += '-NoLobby' }
 $next = Start-Process powershell -WindowStyle Hidden -WorkingDirectory $botRoot -ArgumentList $launchArgs -RedirectStandardOutput 'logs\codex-launch.out.log' -RedirectStandardError 'logs\codex-launch.err.log' -PassThru
-@{ launcherPid = $next.Id; processStartUtc = $next.StartTime.ToUniversalTime().ToString('o'); botId = 76; teamId = 70; logFile = $logFile; paramsB = $(if ($ParamsB -and -not $Tournament) { $ParamsB } else { $null }); tournamentMode = [bool]$Tournament } |
+@{ launcherPid = $next.Id; processStartUtc = $next.StartTime.ToUniversalTime().ToString('o'); botId = $runner.botId; teamId = $runner.teamId; botName = $botName; teamName = $teamName; logFile = $logFile; paramsA = $(if ($ParamsA -and -not $Tournament) { $ParamsA } else { $null }); paramsB = $(if ($ParamsB -and -not $Tournament) { $ParamsB } else { $null }); tournamentMode = [bool]$Tournament } |
   ConvertTo-Json | Set-Content -LiteralPath $stateFile
-Write-Output "LetterSharkPro launcher PID $($next.Id); log $logFile"
+Write-Output "$botName launcher PID $($next.Id); log $logFile"
