@@ -55,10 +55,10 @@ What the first live matches found, and the fixes:
 
 By late evening the lobby was all human bots (30+ registered; winning scores
 rose from about 90 to 120-150 within hours as teams updated their bots).
-Public data () showed LetterShark at all-human
+Public data (`scripts/field-report.mjs`) showed LetterShark at all-human
 tables assuming a 35% share of future auctions while winning about 15%,
 overvaluing speculative letters early and running dry. Trials, in order
-( for before/after,  for the
+(`scripts/ab-report.mjs` for before/after, `scripts/ab-live.mjs` for the
 interleaved ones, where matches alternate between two parameter sets):
 
 | Trial | Matches | Wins | Mean place | Verdict |
