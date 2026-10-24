@@ -81,6 +81,28 @@ field, so they reward aggression that real rivals punish. The website
 leaderboard rates lobby games only; the tournament's Swiss round 1 is
 seeded randomly (tournament.ts), so lobby rating does not carry over.
 
+## What match winners do (322 all-human matches, #600-924)
+
+`node scripts/winners-report.mjs 600`: the winner of each match against the
+other five at the same table.
+
+| Feature | Winner | Rest | Difference |
+|---|---:|---:|---:|
+| Letters won | 14.1 | 10.7 | **+3.4** |
+| ... in the first / middle / last third | 4.3 / 5.2 / 4.7 | 3.8 / 3.6 / 3.4 | +0.5 / +1.6 / +1.3 |
+| Average price paid per letter | 13.2 | 13.5 | -0.3 |
+| Average winning bid | 18.6 | 18.5 | +0.0 |
+| Rare letters won (value 4+) | 2.4 | 1.6 | +0.8 |
+| Points per letter (incl. 5 dealt) | 5.5 | 4.3 | +1.2 |
+| Money left at the end | 23 | 27 | -4 |
+| 7+ letter words | 1.8 | 1.3 | +0.5 |
+
+Winners neither bid higher nor pay more per letter; they win more letters at
+the market price, mostly mid- and late-game, including more rare letters, and
+turn them into more long words. LetterSharkX matches the "rest" column
+(10.6 letters, 34 coins left), which points at bidding market-level on more
+letters, not at caps or reserves (both lost live).
+
 ## Live opponents and the tournament phases (2026-10-23)
 
 **The strongest live opponent.** "bot" (id 7) beat LetterShark in 3 of
