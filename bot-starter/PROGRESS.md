@@ -6,7 +6,7 @@ on branch `scrabblebot-bot`, merged with upstream's tournament version
 
 ## Status: live as LetterShark, waiting for the tournament
 
-**Right now (2026-10-24, 00:30 PT):** LetterShark runs in **tournament mode** (`run.ps1 -NewToken -NoLobby -LogFile logs\tournament.log`) in its own window, waiting to register; it plays no lobby games. Shipped config: `final` = 96 samples + priorByRivals 1.0, which beat every variant in live interleaved tests (RESULTS.md, Live trials). A 30-minute health check (this Claude Code session) restarts it if it stops. Do not run the simulator once registration opens.
+**Right now (2026-10-24, 01:35 PT):** fresh start as **LetterSharkX** (bot id 61, team **Team Manush 2**), created at the user's request. The old LetterShark (id 8, Team Manush) could not be deleted: an unknown anonymous identity had joined that team (anyone can join any team by name), and a team is only deleted when its last member leaves. LetterSharkX runs the shipped config (96 samples + priorByRivals 1.0) in the lobby (`run.ps1 -BotName LetterSharkX -NewToken -LogFile logs\lobby.log`). Tournament day: the same with `-NoLobby`.
 
 - **Event:** ScrabbleBot tournament, Cal Hacks 13.0, **12:00 AM Sunday**
   (Saturday night), live: Swiss rounds, a cut, elimination, then a
@@ -30,7 +30,7 @@ on branch `scrabblebot-bot`, merged with upstream's tournament version
    program staying open:
    ```powershell
    cd C:\Users\Manush\Desktop\Scrabblebot\scrabblebot\bot-starter
-   powershell -ExecutionPolicy Bypass -File .\run.ps1 -BotName LetterShark -NewToken -NoLobby -LogFile logs\tournament.log
+   powershell -ExecutionPolicy Bypass -File .\run.ps1 -BotName LetterSharkX -NewToken -NoLobby -LogFile logs\tournament.log
    ```
    - `-NewToken` mints a fresh token with your `spacetime login` and passes
      it straight into the bot: it isn't shown, saved or put on the
