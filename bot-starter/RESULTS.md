@@ -739,8 +739,19 @@ share 0.25 -0.04 ± 0.10, prices x0.9 -0.05 ± 0.11, no late cash -0.03 ±
 0.08, cash below 12 +0.02 ± 0.09, rack cap 10 +0.04 ± 0.07; shading has
 no effect because the rollout returns its bid before the shading step.
 The valuation is robust to these knobs; none is 0.15 better, so none
-replaces the live B. Experiment 122 (running) tests price adaptation,
-the live cash-when-broke rule, 96 samples and pacing.
+replaces the live B.
+
+Experiment 122 (340 x 1 seed, paired against the same B): per-table price
+adaptation is harmful (`rolloutPriceAdapt` 1: +0.38 ± 0.12; 0.5: +0.13 ±
+0.10; the paid x1.3 estimate overstates the level and future me then buys
+too little); slower pacing (`rolloutPace` 60) +0.27 ± 0.10; the terminal
+coin value is irrelevant at the full horizon (identical); turning the live
+cash-when-broke rule on (`cashTiming 1, cashMinLen 2` with `cashBelow 8`,
+so the bot matches its own future me) -0.047 ± 0.043; 96 samples with
+share 0.22 -0.10 ± 0.10; **share 0.22 with prices x0.9 -0.18 ± 0.11**
+(30.3% wins, 92.0 score, 13.5 letters). The last is above the 0.15 queue
+threshold and goes to confirmation (experiment 124) before it can become
+the next live B.
 
 The word rules alone are harmful; the rollout valuation is what carries
 the gain, and it needs the full horizon and enough samples (the bid is
