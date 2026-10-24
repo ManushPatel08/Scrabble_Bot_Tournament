@@ -39,6 +39,11 @@ export const FIELDS: Record<string, Field> = {
   "duel7-v": { name: "duel7-v", auctionType: "Vickrey", opponents: ["v7"] },
   "duelfin-v": { name: "duelfin-v", auctionType: "Vickrey", opponents: ["final"] },
   "duelshadow-v": { name: "duelshadow-v", auctionType: "Vickrey", opponents: ["shadow"] },
+  // Opponents modelled on the live server (sim/baselines/live.ts).
+  "livelobby-v": { name: "livelobby-v", auctionType: "Vickrey", opponents: ["botlike", "brutus-sim", "valor-sim", "brutus-sim:maverick-sim", "cheapo-sim"] },
+  "duelbot-v": { name: "duelbot-v", auctionType: "Vickrey", opponents: ["botlike"] },
+  "duelbothi-v": { name: "duelbothi-v", auctionType: "Vickrey", opponents: ["botlike-hi"] },
+  "strongbot-v": { name: "strongbot-v", auctionType: "Vickrey", opponents: ["botlike", "botlike-hi:botlike2", "botlike-lo", "v7", "agent"] },
   "dueldenier-v": { name: "dueldenier-v", auctionType: "Vickrey", opponents: ["denier"] },
   "duelaggr-v": { name: "duelaggr-v", auctionType: "Vickrey", opponents: ["aggr"] },
 };

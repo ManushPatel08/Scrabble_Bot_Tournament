@@ -51,3 +51,9 @@ register("snowball", () => ({
   name: "snowball",
   make: () => new Agent({ ...FINALP, cashTiming: 1, cashMinLen: 4, mu0: 0.3, fpMu0: 0.2, muTimeExp: 2 }, "snowball"),
 }));
+
+// Models of opponents seen on the live server (sim/baselines/live.ts).
+import { BotLikeAgent } from "./baselines/live.ts";
+register("botlike", () => ({ name: "botlike", make: () => new BotLikeAgent(1) }));
+register("botlike-lo", () => ({ name: "botlike-lo", make: () => new BotLikeAgent(0.7, {}, "botlike-lo") }));
+register("botlike-hi", () => ({ name: "botlike-hi", make: () => new BotLikeAgent(1.4, {}, "botlike-hi") }));

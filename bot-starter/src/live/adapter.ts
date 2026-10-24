@@ -145,6 +145,8 @@ interface Session {
   roundOfAuction: Map<bigint, number>;
   /** Last auction we decided on (its result is looked up directly as a fallback). */
   lastAuction: bigint | null;
+  /** Smallest arrival age seen this match (baseline for LATE). */
+  minAge: number;
 }
 
 /** Below this auction window the between-round precompute is skipped. */
@@ -153,15 +155,31 @@ const MIN_PREPARE_WINDOW_MS = 800;
 const PREPARE_SLICE_MS = 15;
 /** An auction message that waited longer than this in our queue is logged even with LOG_ROUNDS=0. */
 const SLOW_QUEUE_MS = 150;
+/** An auction delivered this much later than the match's fastest is flagged LATE. */
+const LATE_DELIVERY_MS = 300;
+/** A reducer reply slower than this is logged. */
+const SLOW_REPLY_MS = 400;
+
+/** Wall-clock age of an auction when it reached us: our clock minus its opens_at (includes clock offset). */
+function ageMs(a: AuctionRow): number | undefined {
+  return a.opensAt ? Date.now() - Number(a.opensAt.microsSinceUnixEpoch / 1000n) : undefined;
+}
 
 /** Fire a reducer call; reducers return a promise that rejects on reducer errors. */
 function fire(log: LiveOptions["log"], what: string, call: () => unknown, onError?: () => void): void {
   try {
-    const r = call() as { catch?: (f: (e: unknown) => void) => void } | undefined;
-    r?.catch?.((e) => {
-      log(`${what} failed:`, e instanceof Error ? e.message : String(e));
-      onError?.();
-    });
+    const sent = performance.now();
+    const r = call() as { then?: (ok: () => void, err: (e: unknown) => void) => void } | undefined;
+    r?.then?.(
+      () => {
+        const ms = performance.now() - sent;
+        if (ms > SLOW_REPLY_MS) log(`${what}: server replied after ${ms.toFixed(0)} ms`);
+      },
+      (e) => {
+        log(`${what} failed after ${(performance.now() - sent).toFixed(0)} ms:`, e instanceof Error ? e.message : String(e));
+        onError?.();
+      },
+    );
   } catch (e) {
     log(`${what} threw:`, e instanceof Error ? e.message : String(e));
     onError?.();
@@ -241,9 +259,10 @@ export class LiveBot {
     if (a.status.tag !== "Open") return;
     this.pendingOpens++;
     const receivedAt = performance.now();
+    const age = ageMs(a);
     this.o.defer(() => {
       this.pendingOpens--;
-      this.guard(`auction ${a.id}`, () => this.onAuctionOpen(a.id, a.matchId, a.letter, windowMs(a), receivedAt));
+      this.guard(`auction ${a.id}`, () => this.onAuctionOpen(a.id, a.matchId, a.letter, windowMs(a), receivedAt, age));
     });
   }
 
@@ -435,6 +454,7 @@ export class LiveBot {
       handledAuctions: new Set(),
       roundOfAuction: new Map(),
       lastAuction: null,
+      minAge: Infinity,
     };
     results.forEach((r, i) => this.queueResult(s, r.auctionId, r.letter, r.winnerBotId ?? null, Number(r.paid), i + 1));
     for (const w of words) this.queueWord(s, w.id, w.botId, w.word, Number(w.totalReward));
@@ -480,7 +500,14 @@ export class LiveBot {
     s.pendingWords = [];
   }
 
-  onAuctionOpen(auctionId: bigint, matchId: bigint, letter: string, window?: number, receivedAt?: number): void {
+  onAuctionOpen(
+    auctionId: bigint,
+    matchId: bigint,
+    letter: string,
+    window?: number,
+    receivedAt?: number,
+    age?: number,
+  ): void {
     if (this.myBotId === null) return;
     const db = this.conn.db;
     const start = performance.now();
@@ -522,14 +549,20 @@ export class LiveBot {
     for (const word of decision.words) fire(this.o.log, `word ${word}`, () => this.conn.reducers.submitWord({ matchId, word }));
     if (decision.bid > 0) bid(decision.bid);
     const ms = performance.now() - t0;
-    // Time the auction's message waited in our queue before this decision.
+    // Time the auction's message waited in our queue before this decision,
+    // and how old it was on arrival relative to the youngest one this match
+    // (the clock offset cancels out): a late delivery from the server.
     const waited = receivedAt === undefined ? 0 : start - receivedAt;
-    if (this.o.logRounds || waited > SLOW_QUEUE_MS) {
+    if (age !== undefined) s.minAge = Math.min(s.minAge, age);
+    const late = age === undefined ? 0 : age - s.minAge;
+    if (this.o.logRounds || waited > SLOW_QUEUE_MS || late > LATE_DELIVERY_MS) {
       this.o.log(
         `m${matchId} r${round} bag ${m.bagTotal} '${letter}' bid ${decision.bid}` +
           (decision.words.length ? ` play ${decision.words.join(",")}` : "") +
-          ` (${ms.toFixed(1)} ms${receivedAt === undefined ? "" : `, waited ${waited.toFixed(0)} ms`})` +
-          (waited > SLOW_QUEUE_MS ? " SLOW" : ""),
+          ` (${ms.toFixed(1)} ms${receivedAt === undefined ? "" : `, waited ${waited.toFixed(0)} ms`}` +
+          `${age === undefined ? "" : `, age ${age.toFixed(0)} ms`})` +
+          (waited > SLOW_QUEUE_MS ? " SLOW" : "") +
+          (late > LATE_DELIVERY_MS ? ` LATE+${late.toFixed(0)}` : ""),
       );
     }
     // Use the rest of the window for next round's heavy lifting.
