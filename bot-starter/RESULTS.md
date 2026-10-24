@@ -761,6 +761,29 @@ at 48 samples and 2.52 (-0.20 ± 0.12) at 96. That is the queued next B
 ("rollout B2": 96 samples, share 0.22, prices x0.9), pending the outcome
 of live trial 4 for the rollout family as a whole.
 
+### Live trial 4 at 30 per arm: what the rollout actually does at the table
+
+Public per-game data for the trial's own games (bot 95, #3236+):
+
+| Arm | Games | Place | Wins | Score | Letters e/m/l | Paid/letter | Short-word pts mid-match | Final-partition pts | Unspent | 7+ / 8+ words | Zero bids per game |
+|---|--:|--:|--:|--:|---|--:|--:|--:|--:|--:|--:|
+| A: noise1 (static) | 32 | 2.63 | 31% | 92 | 12.7 = 2.7/5.3/4.8 | 13.1 | 0.0 | 16.3 | 9.4 | 1.81 / 0.25 | 2.3 |
+| B: rollout 48 | 31 | 2.55 | 13% | 88 | 12.8 = **6.5/4.6/1.6** | 13.9 | 13.7 | 0.1 | 11.0 | 1.84 / 0.13 | **9.3** |
+
+Same number of letters, opposite timing. The rollout front-loads (6.5
+early letters, like Lambi) and then stalls: 1.6 late letters and 9.3
+zero bids a game, 11 coins unspent. With few auctions left, one more
+letter rarely changes its playouts, so win and pass look alike and it
+passes; the static model's late valuation (money nearly worthless, so
+any letter that improves the final partition is bought) wins 4.8 late
+letters. The replay rewarded the rollout's early buying and did not
+punish the late stall enough, which is the likely source of the
+replay-live gap. Hybrid under test (experiment 127): rollout while at
+least `rolloutMinLeft` usable auctions remain, static valuation after.
+The live trial continues to 45 unchanged; at 30 per arm B is equal on
+place and behind on wins, so adoption of the 48-sample rollout as it
+stands is unlikely.
+
 ### Experiment 123: the rollout in tournament formats — **catastrophic in duels**
 
 `sim/compare.ts`, 200 matches per cell, default vs the live B (rollout,

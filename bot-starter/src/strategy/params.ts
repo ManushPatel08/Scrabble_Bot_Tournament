@@ -246,6 +246,13 @@ export interface Params {
    * valuation and the duel leader tax (experiment 123).
    */
   rolloutMinPlayers: number;
+  /**
+   * Use the rollout bid only while at least this many usable auctions
+   * remain (0 = always); later the static valuation bids. Live trial 4:
+   * the rollout bought 6.5 early letters but 1.6 late ones and bid zero 9
+   * times a match, because one late letter rarely changes its playouts.
+   */
+  rolloutMinLeft: number;
   /** Hold a 7-letter word while at least this many unseen tiles would extend it to 8+ (0 = off). */
   hold7Ext: number;
   /** hold7Ext applies only with at least this many usable auctions left. */
@@ -359,6 +366,7 @@ export const DEFAULT_PARAMS: Params = {
   rolloutTerminalCoin: 0.4,
   rolloutPriceAdapt: 0,
   rolloutMinPlayers: 4,
+  rolloutMinLeft: 0,
   hold7Ext: 0,
   hold7MinLeft: 6,
   taxShade: 1,
