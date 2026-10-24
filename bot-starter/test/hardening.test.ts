@@ -220,7 +220,7 @@ test("cashBelow cashes short words only when nearly broke; futureAffordable caps
 test("hold7Ext keeps a 7-letter word only with many extensions, time left and money", () => {
   const idx = new WordIndex(["RETAINS", "GANISTER", "NITRATES", "JO"]);
   const words = (params: Record<string, number>, balance: number, bagTotal = 40) => {
-    const a = new Agent({ ...FINAL, ...params, samples: 8 }, "hold7", idx);
+    const a = new Agent({ ...FINAL, cashThreshA: 0, cashThreshB: 0, ...params, samples: 8 }, "hold7", idx);
     start(a, 6, [null, null, null, null, null, null], "Vickrey");
     return a.onAuction({ ...view(6, "Q"), rack: countsOf("RETAINS"), bagTotal, balances: [balance, 100, 100, 100, 100, 100] }).words;
   };
@@ -250,7 +250,7 @@ test("shadeLow scales only 1-2 point letters, only while enough auctions remain"
 test("rollout valuation: affordable, zero on the final auction, reproducible, and higher for a completing letter", () => {
   const R = { rolloutBid: 1, rolloutSamples: 16, rolloutHorizon: 66, rackCap: 11, cashBelow: 8, lateCashLen: 5, lateCashWindow: 12, finalPackWindow: 3 };
   const decide = (letter: string, rackStr: string, bagTotal: number, balance: number, seed = 11) => {
-    const a = new Agent({ ...FINAL, ...R }, "rollout");
+    const a = new Agent({ ...FINAL, cashThreshA: 0, cashThreshB: 0, ...R }, "rollout");
     a.onMatchStart({ seat: 0, nPlayers: 6, names: ["a", "b", "c", "d", "e", "f"], simStrategies: [null, null, null, null, null, null],
       auctionType: "Vickrey", rack: countsOf(rackStr.slice(0, 5)), seed, offline: [false, false, false, false, false, false] });
     for (let r = 1; r < 68 - bagTotal; r++) { a.t.openAuction(r, "A", 68 - r); a.onAuctionResult({ round: r, letter: "A", winner: 1, paid: 12 }); }
@@ -300,7 +300,8 @@ test("cash threshold holds a cheap 7 while rich and cashes it as money runs out;
     return a.onAuction({ ...view(6, "Q"), rack: countsOf("RETAINS"), bagTotal, balances: [balance, 100, 100, 100, 100, 100] }).words;
   };
   const T = { cashThreshA: 28, cashThreshB: 0.63 };
-  assert.equal(words({}, 100).length, 1); // shipped: play the 7 at once
+  assert.equal(words({ cashThreshA: 0, cashThreshB: 0 }, 100).length, 1); // threshold off: play the 7 at once
+  assert.deepEqual(words({}, 100), []); // shipped (Ultra): the threshold is on, so a cheap 7 is held while rich
   assert.deepEqual(words(T, 100), []); // a ~27-point 7 < 28 + 63: hold while rich
   assert.equal(words({ ...T, cashThreshA: 1, cashThreshB: 0 }, 100).length, 1); // a low bar plays it
   assert.equal(words(T, 100, 2).length, 1); // too late to hold

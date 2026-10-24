@@ -890,6 +890,25 @@ strategy (`scripts/ultra-params.json`) at the simulator-verified setting
 12 coins and also changed every valuation (`futureAffordable`); this one
 isolates the cash rule.
 
+### Live trial 5 verdict and LetterSharkUltra (15:42 PT)
+
+| Arm | Games | Wins | Last | Mean place | Mean score |
+|---|--:|--:|--:|--:|--:|
+| A: futureCountNoise 1 | 26 | 7 (27%) | 0 | 2.27 | 93 |
+| B: + cash threshold 28 / 0.63 | 26 | **9 (35%)** | 1 | 2.50 | **94** |
+
+Pre-registered rule (14:55 PT, given agreeing replay, holdout and simulator
+evidence): adopt at 25 per arm unless B is >= 0.3 places worse or behind on
+both wins and score. B was 0.23 behind on place, ahead on wins and score:
+**adopted**. Both arms played well above the bot's all-day level (about 2.8),
+so the place difference is noise at this size (SE about 0.37). Shipped as the
+Ultra defaults together with broke-cash (experiments 131-132, not part of the
+live B): `futureCountNoise 1, cashThreshA 28, cashThreshB 0.63, cashTiming 1,
+cashMinLen 4, cashBelow 8`. Typecheck clean; `npm test` 83/83. At the user's
+request the bot was then re-registered as **Manush5 / LetterSharkUltra, team
+114 / bot 120** (scripts/go-ultra.ps1), so its rating reflects only this
+strategy.
+
 ### Experiment 123: the rollout in tournament formats — **catastrophic in duels**
 
 `sim/compare.ts`, 200 matches per cell, default vs the live B (rollout,

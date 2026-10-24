@@ -1,8 +1,10 @@
 # Current live session — October 24, 2026 (America/Los_Angeles)
 
-> **Manual runbook (if no Claude session is running):** from bot-starter, at ~15:45 PT run `node scripts/ab-live.mjs logs/manush4-live.log --since 8286`; if B's mean place is not more than 0.3 above A's run `powershell -ExecutionPolicy Bypass -File scripts/go-ultra.ps1`, otherwise add `-NoThreshold`. Verify with `node scripts/health.mjs`, then commit and push src/strategy/params.ts and versions.ts to `tournament scrabblebot-bot:main`. At 21:00 PT run `powershell -ExecutionPolicy Bypass -File scripts/restart-live.ps1 -Tournament`. Recovery: `scripts/restart-live.ps1 -IfDown`. Never run go-ultra twice or start run.ps1 by hand.
+> **15:42 PT: LetterSharkUltra is live (Manush5, team 114, bot 120, launcher PID 127076, log logs/ultra-live.log) on the shipped Ultra defaults; go-ultra.ps1 has been run and must not be run again.** Remaining manual step if no Claude session is running: at 21:00 PT run `powershell -ExecutionPolicy Bypass -File scripts/restart-live.ps1 -Tournament` from bot-starter and check `node scripts/health.mjs` (tournamentMode=true; once registration opens, a tournaments row and our entry). Recovery: `scripts/restart-live.ps1 -IfDown`. Never start run.ps1 by hand.
 
-The current registration is **Manush4 / LetterSharkPro: team 89, bot 95**,
+The current registration is **Manush5 / LetterSharkUltra: team 114, bot 120**, created at 15:42 PT through scripts/go-ultra.ps1 (normal leave/create flow) on the user's explicit request to rename after finalising. **Shipped defaults (DEFAULT_PARAMS and VERSIONS.final) now include `futureCountNoise 1, cashThreshA 28, cashThreshB 0.63, cashTiming 1, cashMinLen 4, cashBelow 8`** (RESULTS.md "Live trial 5" and experiments 128-132), so `-Tournament` runs this strategy. Bot 95 / team 89 (Manush4, LetterSharkPro) was retired after 260 matches (archives logs/retired-95-*). No A/B is running.
+
+Previous: The current registration is **Manush4 / LetterSharkPro: team 89, bot 95**,
 created at 09:55 PT on October 24 through the normal account flow
 (`scripts/replace-registration.ts`) on the user's explicit request ("Start
 a new bot with strongest variant"). It runs **standalone
