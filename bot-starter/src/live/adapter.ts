@@ -126,6 +126,12 @@ export interface LiveOptions {
   participantsReady?: (matchId: bigint) => boolean;
   /** Parameter overrides on top of the shipped configuration (BOT_PARAMS). */
   params?: Partial<Params>;
+  /**
+   * Live A/B (BOT_PARAMS_B): when set, new matches alternate between params
+   * (variant A) and these (variant B), so both face the same field at the
+   * same time. The match log line names the variant.
+   */
+  paramsAlt?: Partial<Params>;
 }
 
 interface PendingResult { auctionId: bigint; letter: string; winner: bigint | null; paid: number; round: number }
@@ -379,6 +385,14 @@ export class LiveBot {
 
   // ---------------------------------------------------------------- helpers
 
+  /** Matches started with an A/B variant (alternation counter). */
+  private matchesStarted = 0;
+
+  /** Joined mid-match (after a restart): excluded from A/B so both arms see whole matches. */
+  private restartedMatch(m: MatchRow): boolean {
+    return m.currentRound > 1;
+  }
+
   private rackFor(matchId: bigint): Counts {
     const r = emptyCounts();
     for (const h of this.conn.db.myRack.iter()) if (h.matchId === matchId) r[letterIndex(h.letter)]! += h.count;
@@ -432,7 +446,13 @@ export class LiveBot {
     for (const w of words) if (w.botId === this.myBotId) for (const ch of w.word) dealt[letterIndex(ch)]!++;
     for (let c = 0; c < 26; c++) dealt[c] = Math.max(0, dealt[c]!);
 
-    const agent = createAgent(this.o.name, this.o.index, this.o.params ?? {});
+    let variant = "";
+    let over = this.o.params ?? {};
+    if (this.o.paramsAlt && !this.restartedMatch(m)) {
+      variant = this.matchesStarted++ % 2 === 0 ? "A" : "B";
+      if (variant === "B") over = { ...over, ...this.o.paramsAlt };
+    }
+    const agent = createAgent(this.o.name, this.o.index, over);
     agent.onMatchStart({
       seat,
       nPlayers: parts.length,
@@ -467,7 +487,8 @@ export class LiveBot {
         `rack ${countsToString(dealt)}${m.startingRackSize !== undefined ? ` (${m.startingRackSize} dealt)` : ""}, ` +
         `opponents ${names.filter((_, i) => i !== seat).join(", ")}` +
         (offline.some(Boolean) ? `, offline: ${names.filter((_, i) => offline[i]).join(", ")}` : "") +
-        (fresh ? "" : ` (joined at round ${m.currentRound}, replayed ${results.length} auctions)`),
+        (fresh ? "" : ` (joined at round ${m.currentRound}, replayed ${results.length} auctions)`) +
+        (variant ? ` [variant ${variant}]` : ""),
     );
     return s;
   }

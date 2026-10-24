@@ -134,14 +134,17 @@ export class MatchTracker {
 
   /**
    * True if player p is known or inferred to be inactive: offline at match
-   * start, or (after 20 auctions) a non-sim that has neither won a letter nor
-   * played a word.
+   * start and silent since, or (after 20 auctions) a non-sim that has
+   * neither won a letter nor played a word. "Offline" is provisional: some
+   * live bots play without a lasting connection (their credential shows
+   * connected = false, 2026-10-23), so any win or word clears it.
    */
   inactive(p: number): boolean {
     if (p === this.seat) return false;
-    if (this.offline[p]) return true;
+    const silent = this.wins[p] === 0 && this.played[p]!.every((x) => x === 0);
+    if (this.offline[p]) return silent;
     if (this.sims[p] || this.history.length < 20) return false;
-    return this.wins[p] === 0 && this.played[p]!.every((x) => x === 0);
+    return silent;
   }
 
   /** Participants still in play (including us). */

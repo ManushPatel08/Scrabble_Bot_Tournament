@@ -60,6 +60,13 @@ try {
 } catch {
   console.error(`[${BOT_NAME}] BOT_PARAMS is not valid JSON; using the shipped configuration`);
 }
+/** BOT_PARAMS_B: a second set of overrides; matches alternate A/B (live experiments). */
+let PARAMS_B: Record<string, number> | undefined;
+try {
+  PARAMS_B = process.env.BOT_PARAMS_B ? (JSON.parse(process.env.BOT_PARAMS_B) as Record<string, number>) : undefined;
+} catch {
+  console.error(`[${BOT_NAME}] BOT_PARAMS_B is not valid JSON; no A/B`);
+}
 const log = (...a: unknown[]) => {
   console.log(`[${BOT_NAME}]`, ...a);
   toFile(`[${BOT_NAME}] ${fmt(a)}`);
@@ -107,6 +114,7 @@ function onConnect(conn: DbConnection, identity: Identity, _token: string) {
       defer: (f) => setImmediate(f),
       participantsReady: (m) => matchSubs.get(m)?.ready === true,
       params: PARAMS,
+      paramsAlt: PARAMS_B,
     });
   }
   const b = bot;
@@ -197,7 +205,11 @@ function reconnect(why: string) {
 }
 
 function main() {
-  log(`connecting to ${DB_NAME} at ${HOST}${Object.keys(PARAMS).length ? ` with BOT_PARAMS ${JSON.stringify(PARAMS)}` : ""}`);
+  log(
+    `connecting to ${DB_NAME} at ${HOST}` +
+      (Object.keys(PARAMS).length ? ` with BOT_PARAMS ${JSON.stringify(PARAMS)}` : "") +
+      (PARAMS_B ? `, alternating with BOT_PARAMS_B ${JSON.stringify(PARAMS_B)}` : ""),
+  );
   DbConnection.builder()
     .withUri(HOST)
     .withDatabaseName(DB_NAME)
