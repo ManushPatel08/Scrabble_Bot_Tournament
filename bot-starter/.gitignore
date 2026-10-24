@@ -6,3 +6,4 @@ src/module_bindings/
 .token-*
 # Live bot logs (run.ps1 -LogFile logs/...)
 logs/
+sim/replay/
