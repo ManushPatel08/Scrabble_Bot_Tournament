@@ -5,12 +5,15 @@
 //
 //   node scripts/ship-params.mjs '{"rolloutBid":1,"rolloutSamples":48}'
 //   node scripts/ship-params.mjs --dry '{"rolloutBid":1}'
+//   node scripts/ship-params.mjs --file scripts/ultra-params.json
 
 import fs from "node:fs";
 
 const dry = process.argv.includes("--dry");
-const json = process.argv.find((a) => a.startsWith("{"));
-if (!json) throw new Error("Pass the parameters as one JSON object");
+// --file <path> avoids shell quoting (PowerShell 5.1 mangles JSON passed to native programs).
+const fileArg = process.argv.indexOf("--file");
+const json = fileArg !== -1 ? fs.readFileSync(process.argv[fileArg + 1], "utf8") : process.argv.find((a) => a.startsWith("{"));
+if (!json) throw new Error("Pass the parameters as one JSON object or --file <path>");
 const params = JSON.parse(json);
 for (const [k, v] of Object.entries(params)) if (typeof v !== "number" || !Number.isFinite(v)) throw new Error(`${k}: numbers only`);
 
