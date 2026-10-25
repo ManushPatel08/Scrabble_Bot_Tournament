@@ -99,6 +99,7 @@ const COMMON: Params = {
   cashThreshB: 0.63,
   cashThreshMinLeft: 4,
   cashThreshMaxLen: 0,
+  cashForceMinLeft: 0,
   lateAllIn: 0,
   hold7Ext: 0,
   hold7MinLeft: 6,

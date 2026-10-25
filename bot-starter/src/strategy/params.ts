@@ -293,6 +293,13 @@ export interface Params {
   /** Hold under the cash threshold only words up to this length (0 = any length; 7 = play 8+ letter words at once). */
   cashThreshMaxLen: number;
   /**
+   * Forced broke-cash (0 = off): below cashBelow coins, with at least this
+   * many usable auctions left, play the best word of cashMinLen+ letters
+   * without the cashTiming hold test (which almost never passes: it never
+   * fired in Ultra's first 167 live games), so its coins can still buy.
+   */
+  cashForceMinLeft: number;
+  /**
    * Late all-in (Nijello: 70% of its winning bids in the last 5-6 auctions
    * are its whole balance): within this many usable auctions of the end,
    * bid the whole balance on any letter that improves the rack's word set
@@ -428,6 +435,7 @@ export const DEFAULT_PARAMS: Params = {
   cashThreshB: 0.63,
   cashThreshMinLeft: 4,
   cashThreshMaxLen: 0,
+  cashForceMinLeft: 0,
   lateAllIn: 0,
   hold7Ext: 0,
   hold7MinLeft: 6,

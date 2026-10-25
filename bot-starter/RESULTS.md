@@ -1559,3 +1559,21 @@ mu0 0.45 / 0.47 on the independent sets: fixed 340 x 2 +0.06 ± 0.09 /
 +0.05 ± 0.08 (worse), holdout 92 x 4 -0.11 ± 0.12 / -0.14 ± 0.13. Mixed
 signs, all inside their error bars: no change. **LetterSharkUltra goes
 into the tournament exactly as shipped (commit ad9f613 settings).**
+
+### Experiment 139: forced broke-cash (the user's late-cash observation) — too small to ship
+
+The user watched a game where Ultra held a word, played it in the final
+partition and lost by 7. `cashForceMinLeft` (new, off) plays the best
+`cashMinLen`+ word whenever the balance is below `cashBelow`, with at least
+N usable auctions left, skipping the cashTiming hold test (which never
+fired in Ultra's first 167 games). Paired place change vs Ultra:
+
+| Variant | Ultra's games 168 x 3 | Holdout 92 x 4 | Fixed 340 x 2 |
+|---|--:|--:|--:|
+| below 8, 3+ left | +0.004 ± 0.005 | -0.003 ± 0.005 | +0.001 ± 0.008 |
+| below 12, 3+ left | -0.008 ± 0.027 | -0.052 ± 0.036 | -0.012 ± 0.026 |
+| below 8, 5+ letters | +0.006 ± 0.007 | +0.003 ± 0.009 | +0.006 ± 0.015 |
+
+The rule rarely fires: Ultra is seldom under 8-12 coins with a cashable
+word and auctions left. The below-12 version points the right way on all
+three sets but is far below the 0.08 bar. Not shipped; Ultra unchanged.

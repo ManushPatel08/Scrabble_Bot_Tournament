@@ -681,6 +681,13 @@ export class Agent implements Policy {
         }
       }
     }
+    if (this.p.cashForceMinLeft > 0 && this.p.cashBelow > 0 && t.usableFutureAuctions() >= this.p.cashForceMinLeft) {
+      while (balances[me]! < this.p.cashBelow) {
+        const s = this.idx.bestRewardSig(rack, this.p.cashMinLen);
+        if (s === -1) break;
+        play(s);
+      }
+    }
     if (!this.p.cashTiming) return words;
     // Liquidity gates (both 0 = always on): cash only when nearly broke, or
     // only in the last few usable auctions, when a held word's chance of
