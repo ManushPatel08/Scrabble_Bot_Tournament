@@ -66,7 +66,10 @@ try {
     const [n, w, total, mu, sigma] = stats[0];
     out.push(`bot_stats: ${n} matches, ${w} wins, mean score ${(Number(total) / Math.max(1, n)).toFixed(1)}, mu ${mu.toFixed(1)} sigma ${sigma.toFixed(2)}`);
   }
-  if (tours.length) warn.push("tournament row present");
+  // A tournament existing is expected; only a missing entry while one takes registrations needs attention.
+  const statusTags = ["Lobby", "Swiss", "Bracket", "Final", "Ended", "Registration"];
+  for (const t of tours) out.push(`tournament ${t[0]} status: ${statusTags[t[1]?.[0]] ?? JSON.stringify(t[1])}`);
+  if (tours.some((t) => t[1]?.[0] === 5) && !entries.length) warn.push("tournament open for registration but no entry for our bot");
   if (members.length !== 1) warn.push(`team has ${members.length} members`);
 } catch (e) {
   warn.push(`public query failed: ${e instanceof Error ? e.message : e}`);
