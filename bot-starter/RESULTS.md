@@ -1516,3 +1516,32 @@ configuration (futureCountNoise 1 alone) on the same games: 3.00 / 22.6% /
 83.2, paired +0.44 ± 0.13. The calibration is close for this family of
 changes (cash timing, no change in early buying), so this dataset is the
 screen for the next candidate against the current field.
+
+### Experiments 134-135: improving on Ultra against the current top five (19:00 PT)
+
+Analyses of james, bro, Metheny and Ultra's own 167 games (notes in
+`research_notes/Top five bots versus Ultra/`, report in
+`reports/Top five bots versus Ultra.md`) agreed that Ultra's remaining gap
+is timing: it plays every 2-6 letter word only in the final partition
+(about 15 points a game, all 167 games), its broke-cash rule never fired,
+and 7s it starts holding after auction 46 upgrade only 14% of the time.
+bro (recent version: mean place 1.93, 43% wins, 0% last over 58 games)
+cashes its words by about 87% of the match and spends the rewards late.
+
+Screens on the calibrated replay of Ultra's own games (168 x 3, paired):
+
+| Change | Place | Paired change |
+|---|--:|--:|
+| Ultra | 2.55 | |
+| threshold 24/0.55, 32/0.7; broke-cash below 12/16; 7s forced with 8 left; late all-in 5 | 2.54-2.57 | -0.01 to +0.02 (all ± 0.01-0.06) |
+| stop late 7-holds (any 7+ in the last 21) | 2.65 | +0.10 ± 0.07 |
+| cash any 4+ word in the last 10 auctions (± late all-in 6, broke-cash 12) | 2.84-2.85 | +0.29 to +0.30 |
+| cash any 5+ / 4+ word in the last 15 | 2.99 / 3.14 | +0.44 / +0.59 |
+| stop late holds + cash 4+ in last 15 + all-in 8 | 3.20 | +0.65 ± 0.11 |
+
+Ultra sits at the optimum of its own knobs, and copying bro's early
+cash-out is clearly worse in our engine: the letters held to the end are
+worth more combined in the final partition than as separate short words
+plus the few letters their coins buy. **Decision: keep Ultra unchanged for
+the tournament** unless the narrow completer screen (experiment 136)
+shows a clear gain.
