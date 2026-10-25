@@ -52,6 +52,13 @@ try {
   out.push(`tournaments: ${tours.length ? JSON.stringify(tours) : "none"}`);
   const entries = await q(`SELECT * FROM tournament_entry WHERE bot_id = ${Number(state.botId)}`);
   out.push(`our entries: ${entries.length ? JSON.stringify(entries) : "none"}`);
+  // The server's own view of the bot's connections (public bot_credential rows).
+  // An idle bot can lose its socket silently (2026-10-24 22:00 PT), so this,
+  // not the launcher PID, is what proves the bot can see a tournament open.
+  const creds = await q(`SELECT connected, last_seen FROM bot_credential WHERE bot_id = ${Number(state.botId)}`);
+  const live = creds.filter((c) => c[0] === true).length;
+  out.push(`server-side connections for bot ${state.botId}: ${live} of ${creds.length} credentials connected`);
+  if (alive && live === 0) warn.push("bot not connected on the server");
   const members = await q(`SELECT team_id FROM team_member WHERE team_id = ${Number(state.teamId)}`);
   out.push(`team ${state.teamId} members: ${members.length}`);
   const stats = await q(`SELECT matches_played, wins, total_score, openskill_mu, openskill_sigma FROM bot_stats WHERE bot_id = ${Number(state.botId)}`);
