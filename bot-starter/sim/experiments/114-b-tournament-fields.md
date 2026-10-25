@@ -1,0 +1,5 @@
+<!-- Partial output: the run was stopped after three fields (11:40 PT, 2026-10-24); B = cashBelow 12 + futureAffordable 1, later rejected live. -->
+| variant | duel7-v win/rank/score/last/margin | duelfin-v win/rank/score/last/margin | duel-f win/rank/score/last/margin | self-f win/rank/score/last/margin | league-f win/rank/score/last/margin | strongbot-v win/rank/score/last/margin | humans-v win/rank/score/last/margin |
+|---|---|---|---|---|---|---|---|
+| default | 79.7% / 1.20 / 290.2 / 20.7% / +74.8 | 47.7% / 1.52 / 247.8 / 53.7% / -4.5 | 51.3% / 1.49 / 252.3 / 49.3% / +3.7 | 18.0% / 3.46 / 77.4 / 17.7% / -21.9 | 35.3% / 2.06 / 102.3 / 0.0% / -9.6 | 37.0% / 1.96 / 104.5 / 0.0% / -12.3 | 34.7% / 2.20 / 93.2 / 1.3% / -11.4 |
+| B | 79.7% / 1.20 / 288.1 / 20.3% / +76.5 | 48.7% / 1.51 / 248.4 / 51.7% / +1.4 | 57.0% / 1.43 / 256.3 / 43.3% / +17.6 | 17.3% / 3.34 / 79.0 / 15.3% / -21.0 | 43.0% / 1.86 / 108.5 / 0.0% / -1.7 | 47.0% / 1.76 / 108.6 / 0.0% / -5.8 | 38.7% / 2.09 / 95.5 / 0.7% / -6.8 |
