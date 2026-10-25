@@ -32,7 +32,9 @@ if (fs.existsSync(log)) {
   out.push(`log ${log}: last write ${ageS.toFixed(0)} s ago, ${ended.length} matches ended, ${bad.length} warnings in last ${tail.length} lines`);
   for (const l of bad.slice(-5)) out.push(`  ! ${l.slice(0, 200)}`);
   for (const l of ended.slice(-3)) out.push(`  ${l.slice(25, 220)}`);
-  if (ageS > 180) warn.push(`log stale ${ageS.toFixed(0)} s`);
+  // In tournament mode the bot joins no lobbies, so a quiet log is normal until a tournament match starts.
+  if (ageS > 180 && !state.tournamentMode) warn.push(`log stale ${ageS.toFixed(0)} s`);
+  if (ageS > 180 && state.tournamentMode) out.push(`  (idle in tournament mode: no lobby games by design)`);
   if (state.paramsB) {
     const ab = spawnSync(process.execPath, ["scripts/ab-live.mjs", log, "--since", String(state.trialSince ?? 0)], { encoding: "utf8" });
     out.push(ab.stdout.trim());
