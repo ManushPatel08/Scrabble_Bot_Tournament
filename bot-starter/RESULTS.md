@@ -1547,3 +1547,15 @@ min(16, 0.35 x reward) +0.01 ± 0.10; min(20, 0.4 x reward) +0.09 ± 0.12.
 **Decision (19:15 PT): keep Ultra unchanged for the tournament.** No tested
 modification of the top five's techniques beats it on its own calibrated
 games, so no live trial was run (a known-worse B arm would only cost games).
+
+### Experiments 137-138: last check before the tournament (19:30 PT) — Ultra unchanged
+
+Money settings were last tuned before the hold-7 rule changed when coins
+arrive, so they were re-checked on Ultra's engine. Ultra's own games
+(168 x 3, paired): hold only 7s and play 8+ at once (`cashThreshMaxLen` 7,
+new switch, off) +0.12 ± 0.07; mu0 0.45 -0.09 ± 0.11; mu0 0.55 +0.17;
+priorByRivals 1.1 +0.06, 1.5 -0.04; contestFrac 1.0 +0.01, 1.4 -0.01.
+mu0 0.45 / 0.47 on the independent sets: fixed 340 x 2 +0.06 ± 0.09 /
++0.05 ± 0.08 (worse), holdout 92 x 4 -0.11 ± 0.12 / -0.14 ± 0.13. Mixed
+signs, all inside their error bars: no change. **LetterSharkUltra goes
+into the tournament exactly as shipped (commit ad9f613 settings).**

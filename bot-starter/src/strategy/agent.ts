@@ -630,6 +630,7 @@ export class Agent implements Policy {
       // one to arrive, and we are not short of money. The public leaders'
       // extra points over us are almost entirely 8+ letter words.
       if (this.p.cashThreshA > 0 && t.usableFutureAuctions() >= this.p.cashThreshMinLeft &&
+          (this.p.cashThreshMaxLen === 0 || this.idx.sigLen[s]! <= this.p.cashThreshMaxLen) &&
           this.idx.sigReward[s]! < this.p.cashThreshA + this.p.cashThreshB * balances[me]!) break;
       if (this.p.hold7Ext > 0 && this.idx.sigLen[s] === 7 && t.usableFutureAuctions() >= this.p.hold7MinLeft &&
           balances[me]! >= this.p.cashBelow && this.extendingTiles(rack) >= this.p.hold7Ext) break;

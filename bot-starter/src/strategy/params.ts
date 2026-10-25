@@ -290,6 +290,8 @@ export interface Params {
   cashThreshB: number;
   /** Always cash when this few usable auctions remain (the hold has no future). */
   cashThreshMinLeft: number;
+  /** Hold under the cash threshold only words up to this length (0 = any length; 7 = play 8+ letter words at once). */
+  cashThreshMaxLen: number;
   /**
    * Late all-in (Nijello: 70% of its winning bids in the last 5-6 auctions
    * are its whole balance): within this many usable auctions of the end,
@@ -425,6 +427,7 @@ export const DEFAULT_PARAMS: Params = {
   cashThreshA: 28,
   cashThreshB: 0.63,
   cashThreshMinLeft: 4,
+  cashThreshMaxLen: 0,
   lateAllIn: 0,
   hold7Ext: 0,
   hold7MinLeft: 6,
