@@ -1,6 +1,8 @@
 # Current live session — October 24, 2026 (America/Los_Angeles)
 
 > **15:42 PT: LetterSharkUltra is live (Manush5, team 114, bot 120, launcher PID 127076, log logs/ultra-live.log) on the shipped Ultra defaults; go-ultra.ps1 has been run and must not be run again.** Remaining manual step if no Claude session is running: at 21:00 PT run `powershell -ExecutionPolicy Bypass -File scripts/restart-live.ps1 -Tournament` from bot-starter and check `node scripts/health.mjs` (tournamentMode=true; once registration opens, a tournaments row and our entry). Recovery: `scripts/restart-live.ps1 -IfDown`. Never start run.ps1 by hand.
+>
+> **19:15 PT: research on the top five (experiments 133-136) found no improvement on Ultra; Ultra stays as the tournament configuration.** No A/B is running.
 
 The current registration is **Manush5 / LetterSharkUltra: team 114, bot 120**, created at 15:42 PT through scripts/go-ultra.ps1 (normal leave/create flow) on the user's explicit request to rename after finalising. **Shipped defaults (DEFAULT_PARAMS and VERSIONS.final) now include `futureCountNoise 1, cashThreshA 28, cashThreshB 0.63, cashTiming 1, cashMinLen 4, cashBelow 8`** (RESULTS.md "Live trial 5" and experiments 128-132), so `-Tournament` runs this strategy. Bot 95 / team 89 (Manush4, LetterSharkPro) was retired after 260 matches (archives logs/retired-95-*). No A/B is running.
 

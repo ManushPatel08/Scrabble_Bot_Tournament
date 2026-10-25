@@ -1542,6 +1542,8 @@ Screens on the calibrated replay of Ultra's own games (168 x 3, paired):
 Ultra sits at the optimum of its own knobs, and copying bro's early
 cash-out is clearly worse in our engine: the letters held to the end are
 worth more combined in the final partition than as separate short words
-plus the few letters their coins buy. **Decision: keep Ultra unchanged for
-the tournament** unless the narrow completer screen (experiment 136)
-shows a clear gain.
+plus the few letters their coins buy. Experiment 136 (completer floors on the same replay): flat 16 +0.19 ± 0.12;
+min(16, 0.35 x reward) +0.01 ± 0.10; min(20, 0.4 x reward) +0.09 ± 0.12.
+**Decision (19:15 PT): keep Ultra unchanged for the tournament.** No tested
+modification of the top five's techniques beats it on its own calibrated
+games, so no live trial was run (a known-worse B arm would only cost games).
