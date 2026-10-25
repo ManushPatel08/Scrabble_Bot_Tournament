@@ -1506,3 +1506,13 @@ node sim/run.ts --field starter,cheapo-sim,cheapo-sim:snippet-sim,valor-sim,valo
 | brutus-sim | 100.0% | 145.6 ± 0.4 | 63.2 |
 | starter | 0.0% | 16.6 ± 0.2 | 4.5 |
 | valor/hagrid/cheapo/snippet sims | 0.0% | ≤ 0.8 | ≤ 0.1 |
+
+### Experiment 133: the replay reproduces Ultra's live results
+
+Replay dataset built from Ultra's own games (`sim/replay/ultra-recent-1900.json`,
+168 all-human matches #12626-14080, 2 seeds): Ultra replayed 2.56 mean place /
+30.7% wins / 89.6 score against its actual 2.54 / 35.7% / 90.3. The pre-Ultra
+configuration (futureCountNoise 1 alone) on the same games: 3.00 / 22.6% /
+83.2, paired +0.44 ± 0.13. The calibration is close for this family of
+changes (cash timing, no change in early buying), so this dataset is the
+screen for the next candidate against the current field.
