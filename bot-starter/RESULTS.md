@@ -1577,3 +1577,14 @@ fired in Ultra's first 167 games). Paired place change vs Ultra:
 The rule rarely fires: Ultra is seldom under 8-12 coins with a cashable
 word and auctions left. The below-12 version points the right way on all
 three sets but is far below the 0.08 bar. Not shipped; Ultra unchanged.
+
+## Tournament 1 (2026-10-25 00:30 PT): 10th of 68
+
+LetterSharkUltra (bot 120, the Ultra defaults) played four Swiss rounds:
+3rd/6 (83), 3rd/6 (85), 2nd/6 (89), 3rd/7 (67, at a table with Chinese
+Dante, Doppio and Nijello, finishing ahead of Chinese Dante and Nijello).
+It never finished in the bottom half. 17 Swiss points and 324 total put it
+10th of 68, one Swiss point short of the top-6 cut (18). The bracket went to
+K-13 (22), Waupus (21), BuySpellRepeat-bot (20), SookraBot (19), TileShark
+(19) and wordchoice (18, on total score among the three bots on 18). The
+bot ran without a fault: one server-side connection throughout, no late bids.
